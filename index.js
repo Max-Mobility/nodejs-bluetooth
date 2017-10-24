@@ -6,12 +6,41 @@ var smartDrive_service_UUIDs = [
 
 var smartDrives = {};
 
-noble.on('discover', function(peripheral) {
-    if (!smartDrives[peripheral.address]) {
-        smartDrives[peripheral.address] = peripheral;
+function serviceDiscoverCallback(error, services) {
+    var smartDrive = this;
+    if (error) {
+        console.log("Couldn't get services from " + smartDrive.uuid);
+        console.log(error);
+    }
+    else {
+        console.log("FOUND SMART DRIVE SERVICE");
+        console.log(services);
+    }
+}
+
+noble.on('discover', function(smartDrive) {
+    if (smartDrive.state !== 'disconnected') {
+        return;
+    }
+
+    if (!smartDrives[smartDrive.address]) {
+        smartDrives[smartDrive.address] = smartDrive;
 
         console.log('Found Smart Drive DU');
-        console.log('                      ' + peripheral.address);
+        console.log('                      ' + smartDrive.address);
+        
+        smartDrive.connect(function(error) {
+            if (error) {
+                console.log("Couldn't connect to " + smartDrive.uuid);
+                console.log(error);
+            }
+            else {
+                smartDrive.discoverServices(
+                    [],
+                    serviceDiscoverCallback.bind(smartDrive)
+                );
+            }
+        });
     }
 });
 
@@ -20,13 +49,12 @@ noble.on('stateChange', function(state) {
         noble.startScanning(smartDrive_service_UUIDs, true); // any service UUID, allow duplicates
     }
     else {
+        console.log(state);
     }
 });
 
-noble.state = "poweredOn";
-
-setTimeout(function() {
-    noble.stopScanning();
+/*
+noble.on('scanStop', function() {
     Object.keys(smartDrives).map(function(key) {
         var smartDrive = smartDrives[key];
         smartDrive.connect(function(error) {
@@ -35,20 +63,22 @@ setTimeout(function() {
                 console.log(error);
             }
             else {
-                smartDrive.discoverServices(smartDrive_service_UUIDs, function(error, services) {
-                    if (error) {
-                        console.log("Couldn't get services from " + smartDrive.uuid);
-                        console.log(error);
-                    }
-                    else {
-                        console.log("FOUND SMART DRIVE SERVICE");
-                        console.log(services);
-                    }
-                });
+                smartDrive.discoverServices(
+                    [],
+                    serviceDiscoverCallback.bind(smartDrive)
+                );
             }
         });
     });
-}, 10000); // wait for 10 seconds
+});
+*/
+
+noble.state = "poweredOn";
+
+setTimeout(function() {
+    noble.state = "poweredOff";
+    noble.stopScanning();
+}, 5000); // wait for 5 seconds
 
 ///
 
