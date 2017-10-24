@@ -21,5 +21,10 @@
   "bugs": {
     "url": "https://github.com/max-mobility/nodejs-bluetooth/issues"
   },
-  "homepage": "https://github.com/max-mobility/nodejs-bluetooth#readme"
+  "homepage": "https://github.com/max-mobility/nodejs-bluetooth#readme",
+  "dependencies": {
+    "bleno": "^0.4.2",
+    "noble": "^1.8.1",
+    "node-bluetooth": "^1.1.3"
+  }
 }
