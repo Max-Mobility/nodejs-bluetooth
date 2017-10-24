@@ -6,6 +6,31 @@ var smartDrive_service_UUIDs = [
 
 var smartDrives = {};
 
+function characteristicDataCallback(data, isNotification) {
+    var characteristic = this;
+    console.log('got data for characteristic: ' + characteristic.uuid);
+    console.log(data);
+};
+
+function characteristicDiscoverCallback(error, characteristics) {
+    var smartDrive = this;
+    if (error) {
+        console.log("Couldn't get characteristics from " + smartDrive.uuid);
+        console.log(error);
+    }
+    else {
+        console.log("Discovered SmartDrive Characteristics");
+        console.log(characteristics);
+        characteristics.map(function(characteristic) {
+            characteristic.on(
+                'data',
+                characteristicDataCallback.bind(characteristic)
+            );
+            characteristic.subscribe();
+        });
+    }
+}
+
 function serviceDiscoverCallback(error, services) {
     var smartDrive = this;
     if (error) {
@@ -13,8 +38,16 @@ function serviceDiscoverCallback(error, services) {
         console.log(error);
     }
     else {
-        console.log("FOUND SMART DRIVE SERVICE");
+        console.log("Discovered SmartDrive Service");
         console.log(services);
+        services.map(function(service) {
+            if (smartDrive_service_UUIDs.indexOf(service.uuid) > -1) {
+                service.discoverCharacteristics(
+                    [],
+                    characteristicDiscoverCallback.bind(smartDrive)
+                );
+            }
+        });
     }
 }
 
