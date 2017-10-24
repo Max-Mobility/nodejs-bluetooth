@@ -1,5 +1,7 @@
 var noble = require('noble');
 
+var Packet = require('./packet');
+
 var smartDrive_service_UUIDs = [
     "0cd51666e7cb469b8e4d2742f1ba7723"
 ];
@@ -8,8 +10,10 @@ var smartDrives = {};
 
 function characteristicDataCallback(data, isNotification) {
     var characteristic = this;
-    console.log('got data for characteristic: ' + characteristic.uuid);
-    console.log(data);
+    //console.log('got data for characteristic: ' + characteristic.uuid);
+    //console.log(data);
+    var packet = new Packet(data);
+    console.log("Got " + packet.Type + "::" + packet.SubType);
 };
 
 function characteristicDiscoverCallback(error, characteristics) {
@@ -20,7 +24,7 @@ function characteristicDiscoverCallback(error, characteristics) {
     }
     else {
         console.log("Discovered SmartDrive Characteristics");
-        console.log(characteristics);
+        //console.log(characteristics);
         characteristics.map(function(characteristic) {
             characteristic.on(
                 'data',
@@ -39,7 +43,7 @@ function serviceDiscoverCallback(error, services) {
     }
     else {
         console.log("Discovered SmartDrive Service");
-        console.log(services);
+        //console.log(services);
         services.map(function(service) {
             if (smartDrive_service_UUIDs.indexOf(service.uuid) > -1) {
                 service.discoverCharacteristics(
