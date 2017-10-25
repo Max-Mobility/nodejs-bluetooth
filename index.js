@@ -39,7 +39,7 @@ function sendStartOTA() {
 
         newPacket.Command = PacketBinding.PacketCommandType.StartOTA;
 
-        newPacket.OTADevice = PacketBinding.DeviceType.SmartDrive;
+        newPacket.OTADevice = PacketBinding.Device.SmartDrive;
 
         var output = getOutput(newPacket);
         console.log("SENDING START OTA: " + output);
@@ -104,7 +104,6 @@ function characteristicDataCallback(data, isNotification) {
         case PacketBinding.PacketType.Data:
             switch (packetInstance.Data) {
             case PacketBinding.PacketDataType.DeviceInfo:
-                console.log(data);
                 console.log('GOT DEVICE INFO: '+ JSON.stringify(packetInstance.deviceInfo));
                 var device = packetInstance.deviceInfo.device;
                 console.log(device);
@@ -137,11 +136,11 @@ function characteristicDataCallback(data, isNotification) {
             }
             break;
         case PacketBinding.PacketType.Error:
+            console.log(packetInstance.Error);
+
             console.log("REBOOTING INTO OTA");
             sendStartOTA();
             setTimeout(function() { noble.startScanning(smartDrive_service_UUIDs, true); }, 1000);
-            setTimeout(function() { sendTap(); }, 5000);
-            //console.log(packetInstance.Error);
             break;
         case PacketBinding.PacketType.OTA:
             //console.log(packetInstance.OTA);
@@ -166,8 +165,6 @@ function characteristicDiscoverCallback(error, characteristics) {
                 smartDriveControlCharacteristic = characteristic;
                 setTimeout(function() { sendTap(); }, 1000);
                 setTimeout(function() { sendTap(); }, 1500);
-                setTimeout(function() { sendTap(); }, 2000);
-                setTimeout(function() { sendTap(); }, 2500);
             }
             characteristic.on(
                 'data',

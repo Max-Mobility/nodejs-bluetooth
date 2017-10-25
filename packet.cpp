@@ -7,16 +7,49 @@
 /*** Motor ***/
 class Motor {
 public:
-  enum class State  : uint8_t { Off, On, Error };
+  enum class State  : uint8_t {
+    Off,
+      On,
+      Error
+      };
 };
 
 /*** Smart Drive ***/
 class SmartDrive {
 public:
-  enum class Error         : uint8_t { NoError, BatteryVoltage, MotorPhases, OverCurrent, OverTemperature, GyroRange, OTAUnavailable, BLEDisconnect };
-  enum class ControlMode   : uint8_t { Beginner, Intermediate, Advanced, Off };
-  enum class Units         : uint8_t { English, Metric };
-  enum class AttendantMode : uint8_t { Off, Inactive, OnePressed, TwoPressed };
+  enum class Error         : uint8_t;
+  enum class ControlMode   : uint8_t;
+  enum class Units         : uint8_t;
+  enum class AttendantMode : uint8_t;
+
+  enum class Error: uint8_t {
+    NoError,
+      BatteryVoltage,
+      MotorPhases,
+      OverCurrent,
+      OverTemperature,
+      GyroRange,
+      OTAUnavailable,
+      BLEDisconnect
+      };
+
+  enum class ControlMode : uint8_t {
+    Beginner,
+      Intermediate,
+      Advanced,
+      Off
+      };
+
+  enum class Units : uint8_t {
+    English,
+      Metric
+      };
+  enum class AttendantMode : uint8_t {
+    Off,
+      Inactive,
+      OnePressed,
+      TwoPressed
+      };
 
   // settings flags values are the bit numbers 
   enum class BoolSettingFlag  : uint8_t { EZMODE = 0 };
@@ -42,15 +75,77 @@ public:
 class Packet {
 public:
   // Main Type of the packet
-  enum class Type        : uint8_t { None, Data, Command, Error, OTA };
+  enum class Type    : uint8_t {
+    None,
+      Data,
+      Command,
+      Error,
+      OTA
+      };
 
   // Subtypes of the packet
-  enum class Data        : uint8_t { MotorDistance, Speed, CoastTime, Pushes, MotorState, BatteryLevel, VersionInfo, DailyInfo, JourneyInfo, MotorInfo, DeviceInfo, Ready, BatteryInfo };
-  enum class Command     : uint8_t { SetAcceleration, SetMaxSpeed, Tap, DoubleTap, SetControlMode, SetSettings, TurnOffMotor, StartJourney, StopJourney, PauseJourney, SetTime, StartOTA, StopOTA, OTAReady, CancelOTA, Wake, StartGame, StopGame, ConnectMPGame, DisconnectMPGame };
-  enum class OTA         : uint8_t { SmartDrive, SmartDriveBluetooth, PushTracker };
+  enum class Data    : uint8_t;
+  enum class Command : uint8_t;
+  enum class OTA     : uint8_t;
 
-  enum class Device      : uint8_t { SmartDrive, SmartDriveBluetooth, PushTracker };
-  enum class Game        : uint8_t { Mario, Snake, Sonic, Tunnel, FlappyBird, Pong };
+  enum class Data : uint8_t {
+    MotorDistance,
+      Speed,
+      CoastTime,
+      Pushes,
+      MotorState,
+      BatteryLevel,
+      VersionInfo,
+      DailyInfo,
+      JourneyInfo,
+      MotorInfo,
+      DeviceInfo,
+      Ready,
+      BatteryInfo
+      };
+
+  enum class Command : uint8_t {
+    SetAcceleration,
+      SetMaxSpeed,
+      Tap, DoubleTap,
+      SetControlMode,
+      SetSettings,
+      TurnOffMotor,
+      StartJourney,
+      StopJourney,
+      PauseJourney,
+      SetTime,
+      StartOTA,
+      StopOTA,
+      OTAReady,
+      CancelOTA,
+      Wake,
+      StartGame,
+      StopGame,
+      ConnectMPGame,
+      DisconnectMPGame
+      };
+
+  enum class OTA : uint8_t {
+    SmartDrive,
+      SmartDriveBluetooth,
+      PushTracker
+      };
+
+  enum class Device : uint8_t {
+    SmartDrive,
+      SmartDriveBluetooth,
+      PushTracker
+      };
+
+  enum class Game : uint8_t {
+    Mario,
+      Snake,
+      Sonic,
+      Tunnel,
+      FlappyBird,
+      Pong
+      };
 
   static const int numTypeBytes    = 1;
   static const int numSubTypeBytes = 1;
@@ -59,14 +154,12 @@ public:
   static const int maxSize         = numTypeBytes + numSubTypeBytes + maxDataLength;
   static const int minSize         = numTypeBytes + numSubTypeBytes + minDataLength;
 
-
-  // Version Info, stored as MAJOR.MINOR as the major and minor nibbles of each byte.
+  // Version Info
   struct VersionInfo {
     uint8_t     pushTracker;         /** Major.Minor version as the MAJOR and MINOR nibbles of the byte. **/
     uint8_t     smartDrive;          /** Major.Minor version as the MAJOR and MINOR nibbles of the byte. **/
     uint8_t     smartDriveBluetooth; /** Major.Minor version as the MAJOR and MINOR nibbles of the byte. **/
   };
-  //static_assert (sizeof(versionInfo) <= maxDataLength, "VersionInfo structure is too large for packet!");
       
   // Daily Info
   struct DailyInfo {
@@ -82,7 +175,6 @@ public:
     uint8_t     ptBattery;       /** Percent, [0, 100].            */
     uint8_t     sdBattery;       /** Percent, [0, 100].            */
   };
-  //static_assert (sizeof(dailyInfo) <= maxDataLength, "DailyInfo structure is too large for packet!");
       
   // Journey Info
   struct JourneyInfo {
@@ -90,7 +182,6 @@ public:
     uint8_t     distance;        /** Distance (mi) * 10.           */
     uint8_t     speed;           /** Speed (mph) * 10.             */
   };
-  //static_assert (sizeof(journeyInfo) <= maxDataLength, "JourneyInfo structure is too large for packet!");
 
   // Motor Info
   struct MotorInfo {
@@ -102,7 +193,6 @@ public:
     float        speed;
     float        driveTime;
   };
-  //static_assert (sizeof(motorInfo) <= maxDataLength, "MotorInfo structure is too large for packet!");
 
   // Time Info  (for SetTime)
   struct TimeInfo {
@@ -113,14 +203,12 @@ public:
     uint8_t      minutes;
     uint8_t      seconds;
   };
-  //static_assert (sizeof(timeInfo) <= maxDataLength, "TimeInfo structure is too large for packet!");
       
   // Used for just sending device info between devices
   struct DeviceInfo {
     Device     device;     /** Which Device is this about? **/
     uint8_t    version;    /** Major.Minor version as the MAJOR and MINOR nibbles of the byte. **/
   };
-  //static_assert (sizeof(deviceInfo) <= maxDataLength, "DeviceInfo structure is too large for packet!");
 
   // Error Info (sent by the PT to the app)
   struct ErrorInfo {
@@ -131,14 +219,13 @@ public:
     uint8_t             minute;
     uint8_t             second;
     SmartDrive::Error   mostRecentError;          /** Type of the most recent error, associated with the timeStamp. **/
-    uint8_t		    numBatteryVoltageErrors;
-    uint8_t		    numOverCurrentErrors;
-    uint8_t		    numMotorPhaseErrors;
-    uint8_t		    numGyroRangeErrors;
-    uint8_t		    numOverTemperatureErrors;
-    uint8_t		    numBLEDisconnectErrors;
+    uint8_t	        numBatteryVoltageErrors;
+    uint8_t	        numOverCurrentErrors;
+    uint8_t	        numMotorPhaseErrors;
+    uint8_t	        numGyroRangeErrors;
+    uint8_t	        numOverTemperatureErrors;
+    uint8_t		numBLEDisconnectErrors;
   };
-  //static_assert (sizeof(errorInfo) <= maxDataLength, "ErrorInfo structure is too large for packet!");
       
   // BatteryInfo: Used for keeping track of battery and last time
   // battery was updated between PT and App, so the app knows the
@@ -168,14 +255,14 @@ public:
   // The actual data contained in the packet
   union {
     SmartDrive::Settings settings;
-    VersionInfo versionInfo;
-    DailyInfo dailyInfo;
-    JourneyInfo journeyInfo;
-    MotorInfo motorInfo;
-    TimeInfo timeInfo;
-    DeviceInfo deviceInfo;
-    ErrorInfo errorInfo;
-    BatteryInfo batteryInfo;
+    VersionInfo          versionInfo;
+    DailyInfo            dailyInfo;
+    JourneyInfo          journeyInfo;
+    MotorInfo            motorInfo;
+    TimeInfo             timeInfo;
+    DeviceInfo           deviceInfo;
+    ErrorInfo            errorInfo;
+    BatteryInfo          batteryInfo;
 
     /**
      * Used with StartOTA / StopOTA commands, tells which device the
@@ -375,6 +462,17 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .value("Off", SmartDrive::ControlMode::Off)
     ;
 
+  emscripten::enum_<SmartDrive::Error>("SmartDriveError")
+    .value("NoError", SmartDrive::Error::NoError)
+    .value("BatteryVoltage", SmartDrive::Error::BatteryVoltage)
+    .value("MotorPhases", SmartDrive::Error::MotorPhases)
+    .value("OverCurrent", SmartDrive::Error::OverCurrent)
+    .value("OverTemperature", SmartDrive::Error::OverTemperature)
+    .value("GyroRange", SmartDrive::Error::GyroRange)
+    .value("OTAUnavailable", SmartDrive::Error::OTAUnavailable)
+    .value("BLEDisconnect", SmartDrive::Error::BLEDisconnect)
+    ;
+    
   emscripten::value_object<SmartDrive::Settings>("SmartDriveSettings")
     .field("ControlMode", &SmartDrive::Settings::controlMode)
     .field("Units", &SmartDrive::Settings::units)
@@ -451,7 +549,23 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .field("speed", &Packet::MotorInfo::speed)
     .field("driveTime", &Packet::MotorInfo::driveTime)
     ;
-      
+
+  emscripten::value_object<Packet::ErrorInfo>("ErrorInfo")
+    .field("year", &Packet::ErrorInfo::year)
+    .field("month", &Packet::ErrorInfo::year)
+    .field("day", &Packet::ErrorInfo::year)
+    .field("hour", &Packet::ErrorInfo::year)
+    .field("minute", &Packet::ErrorInfo::year)
+    .field("second", &Packet::ErrorInfo::year)
+    .field("mostRecentError", &Packet::ErrorInfo::mostRecentError)
+    .field("numBatteryVoltageErrors", &Packet::ErrorInfo::numBatteryVoltageErrors)
+    .field("numOverCurrentErrors", &Packet::ErrorInfo::numOverCurrentErrors)
+    .field("numMotorPhaseErrors", &Packet::ErrorInfo::numMotorPhaseErrors)
+    .field("numGyroRangeErrors", &Packet::ErrorInfo::numGyroRangeErrors)
+    .field("numOverTemperatureErrors", &Packet::ErrorInfo::numOverTemperatureErrors)
+    .field("numBLEDisconnectErrors", &Packet::ErrorInfo::numBLEDisconnectErrors)
+    ;
+
   emscripten::value_object<Packet::DeviceInfo>("DeviceInfo")
     .field("device", &Packet::DeviceInfo::device)
     .field("version", &Packet::DeviceInfo::version)
