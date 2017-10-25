@@ -2,6 +2,8 @@ var noble = require('noble');
 
 var Packet = require('./packet');
 
+var PacketBinding = require('./packet_bindings');
+
 var smartDrive_service_UUIDs = [
     "0cd51666e7cb469b8e4d2742f1ba7723"
 ];
@@ -12,8 +14,43 @@ function characteristicDataCallback(data, isNotification) {
     var characteristic = this;
     //console.log('got data for characteristic: ' + characteristic.uuid);
     //console.log(data);
-    var packet = new Packet(data);
-    console.log("Got " + packet.Type + "::" + packet.SubType);
+    var packetInstance = new PacketBinding.Packet();
+    packetInstance.newPacket();
+    var valid = packetInstance.processPacket( data );
+    if (valid) {
+        console.log(packetInstance.Type);
+        switch (packetInstance.Type) {
+        case PacketBinding.PacketType.Data:
+            console.log(packetInstance.Data);
+            switch (packetInstance.Data) {
+            case PacketBinding.PacketDataType.MotorInfo:
+                console.log(JSON.stringify(packetInstance.motorInfo));
+                switch (packetInstance.motorInfo.state) {
+                case PacketBinding.MotorState.Off:
+                    console.log('motor state off');
+                    break;
+                case PacketBinding.MotorState.On:
+                    console.log('motor state on');
+                    break;
+                case PacketBinding.MotorState.Error:
+                    console.log('motor state error');
+                    break;
+                }
+                break;
+            }
+            break;
+        case PacketBinding.PacketType.Command:
+            console.log(packetInstance.Command);
+            break;
+        case PacketBinding.PacketType.Error:
+            //console.log(packetInstance.Error);
+            break;
+        case PacketBinding.PacketType.OTA:
+            console.log(packetInstance.OTA);
+            break;
+        }
+    }
+    packetInstance.delete();
 };
 
 function characteristicDiscoverCallback(error, characteristics) {
