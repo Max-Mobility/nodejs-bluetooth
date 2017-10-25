@@ -1,36 +1,124 @@
 var noble = require('noble');
 
-var Packet = require('./packet');
-
 var PacketBinding = require('./packet_bindings');
 
 var smartDrive_service_UUIDs = [
     "0cd51666e7cb469b8e4d2742f1ba7723"
 ];
 
+var smartDrive_control_characteristic_UUIDs = [
+    "e9add780b0424876aae1112855353cc1"
+];
+
+var smartDriveControlCharacteristic = null;
+
 var smartDrives = {};
+
+var withoutResponse = true;
+
+function vectorIntToBuffer(vectorInt) {
+    var output = Buffer.alloc(vectorInt.size());
+    //console.log("VECTOR INT SIZE: "+vectorInt.size());
+    for (var i=0; i<vectorInt.size(); i++) {
+        output[i] = vectorInt.get(i);
+    }
+    return output;
+}
+
+function getOutput(packet) {
+    var vectorOut = new PacketBinding.VectorInt();
+    vectorOut = packet.format();
+    return vectorIntToBuffer(vectorOut);
+}
+
+function sendStartOTA() {
+    if (smartDriveControlCharacteristic) {
+        var newPacket = new PacketBinding.Packet();
+
+        newPacket.Type = PacketBinding.PacketType.Command;
+
+        newPacket.Command = PacketBinding.PacketCommandType.StartOTA;
+
+        newPacket.OTADevice = PacketBinding.DeviceType.SmartDrive;
+
+        var output = getOutput(newPacket);
+        console.log("SENDING START OTA: " + output);
+        smartDriveControlCharacteristic.write(output, withoutResponse);
+        newPacket.delete();
+    }
+}
+
+function sendSettings() {
+    if (smartDriveControlCharacteristic) {
+        var newPacket = new PacketBinding.Packet();
+
+        newPacket.Type = PacketBinding.PacketType.Command;
+
+        newPacket.Command = PacketBinding.PacketCommandType.SetSettings;
+
+        // must have all the fields
+        var settings = {
+            ControlMode: PacketBinding.SmartDriveControlMode.Advanced,
+            Units: PacketBinding.Units.English,
+            Flags: 0,
+            Padding: 0,
+            TapSensitivity: 1.0,
+            Acceleration: 0.5,
+            MaxSpeed: 0.5,
+        };
+
+        newPacket.settings = settings;
+
+        console.log(JSON.stringify(newPacket.settings));
+        
+        var output = getOutput(newPacket);
+        console.log("SENDING SETTINGS: " + output);
+        smartDriveControlCharacteristic.write(output, withoutResponse);
+        newPacket.delete();
+    }
+}
+
+function sendTap() {
+    if (smartDriveControlCharacteristic) {
+        var newPacket = new PacketBinding.Packet();
+
+        newPacket.Type = PacketBinding.PacketType.Command;
+
+        newPacket.Command = PacketBinding.PacketCommandType.Tap;
+        
+        var output = getOutput(newPacket);
+        console.log("SENDING TAP: " + output);
+        smartDriveControlCharacteristic.write(output, withoutResponse);
+        newPacket.delete();
+    }
+}
 
 function characteristicDataCallback(data, isNotification) {
     var characteristic = this;
     //console.log('got data for characteristic: ' + characteristic.uuid);
     //console.log(data);
+
     var packetInstance = new PacketBinding.Packet();
     packetInstance.newPacket();
     var valid = packetInstance.processPacket( data );
     if (valid) {
-        console.log(packetInstance.Type);
+        //console.log(packetInstance.Type);
         switch (packetInstance.Type) {
         case PacketBinding.PacketType.Data:
-            console.log(packetInstance.Data);
+            //console.log(packetInstance.Data);
             switch (packetInstance.Data) {
+            case PacketBinding.PacketDataType.DeviceInfo:
+                console.log(JSON.stringify(packetInstance.deviceInfo));
+                //sendSettings();
+                break;
             case PacketBinding.PacketDataType.MotorInfo:
                 console.log(JSON.stringify(packetInstance.motorInfo));
                 switch (packetInstance.motorInfo.state) {
                 case PacketBinding.MotorState.Off:
-                    console.log('motor state off');
                     break;
                 case PacketBinding.MotorState.On:
                     console.log('motor state on');
+                    setTimeout(function() { sendTap(); }, 1000);
                     break;
                 case PacketBinding.MotorState.Error:
                     console.log('motor state error');
@@ -40,13 +128,14 @@ function characteristicDataCallback(data, isNotification) {
             }
             break;
         case PacketBinding.PacketType.Command:
-            console.log(packetInstance.Command);
+            //console.log(packetInstance.Command);
             break;
         case PacketBinding.PacketType.Error:
+            sendStartOTA();
             //console.log(packetInstance.Error);
             break;
         case PacketBinding.PacketType.OTA:
-            console.log(packetInstance.OTA);
+            //console.log(packetInstance.OTA);
             break;
         }
     }
@@ -63,6 +152,14 @@ function characteristicDiscoverCallback(error, characteristics) {
         console.log("Discovered SmartDrive Characteristics");
         //console.log(characteristics);
         characteristics.map(function(characteristic) {
+            if (smartDrive_control_characteristic_UUIDs.indexOf(characteristic.uuid) > -1) {
+                console.log('Have SD Control endpoint: ' + characteristic.uuid);
+                smartDriveControlCharacteristic = characteristic;
+                setTimeout(function() { sendTap(); }, 1000);
+                setTimeout(function() { sendTap(); }, 3000);
+                setTimeout(function() { sendTap(); }, 7000);
+                setTimeout(function() { sendTap(); }, 8000);
+            }
             characteristic.on(
                 'data',
                 characteristicDataCallback.bind(characteristic)

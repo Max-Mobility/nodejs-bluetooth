@@ -1,5 +1,6 @@
 #include <emscripten/bind.h>
 
+#include <string>
 #include <vector>
 #include <iostream>
 
@@ -264,13 +265,15 @@ public:
     type = Packet::Type::None;
   }
 
-  int        format  (std::string output) {
+  std::vector<uint8_t> format  () {
+    std::vector<uint8_t> output;
     int numBytes = Packet::minSize;
-    output[0] = (char)type;
+    output.push_back((uint8_t)type);
+    //std::cout << (uint8_t)type << std::endl;
     int dataLen = 0;
     switch (type) {
     case Packet::Type::Data:
-      output[2] = (char)data;
+      output.push_back((char)data);
       switch (data) {
       case Packet::Data::MotorDistance:
         dataLen = sizeof(motorDistance);
@@ -303,33 +306,46 @@ public:
         dataLen = sizeof(motorInfo);
         break;
       default:
-        return 0;
+        return std::vector<uint8_t>();
       }
       break;
     case Packet::Type::Command:
-      output[2] = (char)command;
+      output.push_back((uint8_t)command);
+      //std::cout << "Command: " << (uint8_t)command << std::endl;
       // we send no commands, so return 0
       switch (command) {
+      case Packet::Command::StartOTA:
+        dataLen = sizeof(otaDevice);
+        break;
+      case Packet::Command::SetSettings:
+        dataLen = sizeof(settings);
+        break;
+      case Packet::Command::TurnOffMotor:
+        break;
+      case Packet::Command::Tap:
+        break;
+      case Packet::Command::DoubleTap:
+        break;
       default:
-        return 0;
+        return std::vector<uint8_t>();
       }
       break;
     case Packet::Type::Error:
-      output[2] = (char)error;
+      output.push_back((uint8_t)error);
       // errors are sent with a unique ID
       dataLen = sizeof(errorId);
       break;
     case Packet::Type::OTA:
       // we send no OTA packets so return 0
     default:
-      return 0;
+      return std::vector<uint8_t>();
     }
     numBytes += dataLen;
-    uint8_t CRC = 0;
     for (int i=0; i<dataLen; i++) {
-      output[i+2] = bytes[i];
+      output.push_back(bytes[i]);
     }
-    return numBytes;
+    output.shrink_to_fit();
+    return output;
   }
     
 private:
@@ -339,10 +355,17 @@ private:
 
 // BINDING CODE FOR JAVASCRIPT
 EMSCRIPTEN_BINDINGS(packet_bindings) {
+  emscripten::register_vector<uint8_t>("VectorInt");
+  
   emscripten::enum_<Motor::State>("MotorState")
     .value("Off", Motor::State::Off)
     .value("On", Motor::State::On)
     .value("Error", Motor::State::Error)
+    ;
+  
+  emscripten::enum_<SmartDrive::Units>("Units")
+    .value("English", SmartDrive::Units::English)
+    .value("Metric",  SmartDrive::Units::Metric)
     ;
 
   emscripten::enum_<SmartDrive::ControlMode>("SmartDriveControlMode")
@@ -363,6 +386,12 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     ;
   
   // PACKET BINDINGS
+  emscripten::enum_<Packet::Device>("DeviceType")
+    .value("SmartDrive", Packet::Device::SmartDrive)
+    .value("SmartDriveBluetooth", Packet::Device::SmartDriveBluetooth)
+    .value("PushTracker", Packet::Device::PushTracker)
+    ;
+
   emscripten::enum_<Packet::Type>("PacketType")
     .value("None", Packet::Type::None)
     .value("Data", Packet::Type::Data)
@@ -422,7 +451,6 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .field("speed", &Packet::MotorInfo::speed)
     .field("driveTime", &Packet::MotorInfo::driveTime)
     ;
-
       
   emscripten::value_object<Packet::DeviceInfo>("DeviceInfo")
     .field("device", &Packet::DeviceInfo::device)
@@ -484,5 +512,7 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .property("deviceInfo", &Packet::deviceInfo)
     .property("errorInfo", &Packet::errorInfo)
     .property("batteryInfo", &Packet::batteryInfo)
+
+    .property("OTADevice", &Packet::otaDevice)
     ;
 }
