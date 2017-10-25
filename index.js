@@ -14,7 +14,7 @@ var smartDriveControlCharacteristic = null;
 
 var smartDrives = {};
 
-var withoutResponse = true;
+var withoutResponse = false;
 
 function vectorIntToBuffer(vectorInt) {
     var output = Buffer.alloc(vectorInt.size());
@@ -109,7 +109,7 @@ function characteristicDataCallback(data, isNotification) {
             switch (packetInstance.Data) {
             case PacketBinding.PacketDataType.DeviceInfo:
                 console.log(JSON.stringify(packetInstance.deviceInfo));
-                //sendSettings();
+                sendSettings();
                 break;
             case PacketBinding.PacketDataType.MotorInfo:
                 console.log(JSON.stringify(packetInstance.motorInfo));
@@ -156,9 +156,9 @@ function characteristicDiscoverCallback(error, characteristics) {
                 console.log('Have SD Control endpoint: ' + characteristic.uuid);
                 smartDriveControlCharacteristic = characteristic;
                 setTimeout(function() { sendTap(); }, 1000);
-                setTimeout(function() { sendTap(); }, 3000);
-                setTimeout(function() { sendTap(); }, 7000);
-                setTimeout(function() { sendTap(); }, 8000);
+                setTimeout(function() { sendTap(); }, 1500);
+                setTimeout(function() { sendTap(); }, 2000);
+                setTimeout(function() { sendTap(); }, 2500);
             }
             characteristic.on(
                 'data',
