@@ -241,6 +241,9 @@ public:
     uint8_t    pushTrackerBatteryLevel;    /** [0,100] */
   };
 
+  // The length of data bytes contained in the packet
+  char dataLength;
+
   // The actual type contained in the packet
   Type          type;
 
@@ -340,7 +343,9 @@ public:
       break;
     }
 
-    for (int i=0; i<size-2; i++) {
+    dataLength = size - 2;
+
+    for (int i=0; i<dataLength; i++) {
       bytes[i] = rawData[dataIndex + i];
     }
 
@@ -348,6 +353,7 @@ public:
   }
 
   void       newPacket   (void) {
+    dataLength = 0;
     _valid = false;
     type = Packet::Type::None;
   }
@@ -398,8 +404,6 @@ public:
       break;
     case Packet::Type::Command:
       output.push_back((uint8_t)command);
-      //std::cout << "Command: " << (uint8_t)command << std::endl;
-      // we send no commands, so return 0
       switch (command) {
       case Packet::Command::StartOTA:
         dataLen = sizeof(otaDevice);
@@ -423,7 +427,9 @@ public:
       dataLen = sizeof(errorId);
       break;
     case Packet::Type::OTA:
-      // we send no OTA packets so return 0
+      output.push_back((uint8_t)ota);
+      dataLen = 16;
+      break;
     default:
       return std::vector<uint8_t>();
     }
@@ -434,6 +440,17 @@ public:
     output.shrink_to_fit();
     return output;
   }
+
+  std::vector<char> getBytes() const {
+    std::vector<char> b;
+    for (int i=0; i<maxDataLength; i++)
+      b.push_back(bytes[i]);
+    return b;
+  }
+  void setBytes(std::vector<char> b) {
+    for (int i=0; i<b.size(); i++)
+      bytes[i] = b[i];
+  }
     
 private:
   bool              _valid;
@@ -443,6 +460,7 @@ private:
 // BINDING CODE FOR JAVASCRIPT
 EMSCRIPTEN_BINDINGS(packet_bindings) {
   emscripten::register_vector<uint8_t>("VectorInt");
+  emscripten::register_vector<char>("VectorChar");
   
   emscripten::enum_<Motor::State>("MotorState")
     .value("Off", Motor::State::Off)
@@ -594,7 +612,7 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .value("DisconnectMPGame", Packet::Command::DisconnectMPGame)
     ;
 
-  emscripten::enum_<Packet::OTA>("OTA")
+  emscripten::enum_<Packet::OTA>("PacketOTAType")
     .value("SmartDrive", Packet::OTA::SmartDrive)
     .value("SmartDriveBluetooth", Packet::OTA::SmartDriveBluetooth)
     .value("PushTracker", Packet::OTA::PushTracker)
@@ -606,6 +624,9 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .function("processPacket", &Packet::processPacket)
     .function("newPacket", &Packet::newPacket)
     .function("format", &Packet::format)
+
+    // Type Info
+    .property("length", &Packet::dataLength)
 
     // Type Info
     .property("Type", &Packet::type)
@@ -628,5 +649,7 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .property("batteryInfo", &Packet::batteryInfo)
 
     .property("OTADevice", &Packet::otaDevice)
+
+    .property("bytes", &Packet::getBytes, &Packet::setBytes)
     ;
 }
