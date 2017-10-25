@@ -31,16 +31,18 @@ function getOutput(packet) {
     return vectorIntToBuffer(vectorOut);
 }
 
+function fillPacket(p, type, subType, key, data) {
+    p.Type = PacketBinding.PacketType[type];
+    p[type] = PacketBinding['Packet'+type+'Type'][subType];
+    if (key && data) {
+        p[key] = data;
+    }
+}
+
 function sendStartOTA() {
     if (smartDriveControlCharacteristic) {
         var newPacket = new PacketBinding.Packet();
-
-        newPacket.Type = PacketBinding.PacketType.Command;
-
-        newPacket.Command = PacketBinding.PacketCommandType.StartOTA;
-
-        newPacket.OTADevice = PacketBinding.Device.SmartDrive;
-
+        fillPacket(newPacket, "Command", "StartOTA", "OTADevice", PacketBinding.Device.SmartDrive);
         var output = getOutput(newPacket);
         console.log("SENDING START OTA: " + output);
         smartDriveControlCharacteristic.write(output, withoutResponse);
@@ -51,10 +53,6 @@ function sendStartOTA() {
 function sendSettings() {
     if (smartDriveControlCharacteristic) {
         var newPacket = new PacketBinding.Packet();
-
-        newPacket.Type = PacketBinding.PacketType.Command;
-
-        newPacket.Command = PacketBinding.PacketCommandType.SetSettings;
 
         // must have all the fields
         var settings = {
@@ -67,7 +65,7 @@ function sendSettings() {
             MaxSpeed: 0.5,
         };
 
-        newPacket.settings = settings;
+        fillPacket(newPacket, "Command", "SetSettings", "settings", settings);
 
         var output = getOutput(newPacket);
         console.log("SENDING SETTINGS: " + output);
@@ -79,11 +77,7 @@ function sendSettings() {
 function sendTap() {
     if (smartDriveControlCharacteristic) {
         var newPacket = new PacketBinding.Packet();
-
-        newPacket.Type = PacketBinding.PacketType.Command;
-
-        newPacket.Command = PacketBinding.PacketCommandType.Tap;
-        
+        fillPacket(newPacket, "Command", "Tap");
         var output = getOutput(newPacket);
         console.log("SENDING TAP: " + output);
         smartDriveControlCharacteristic.write(output, withoutResponse);
