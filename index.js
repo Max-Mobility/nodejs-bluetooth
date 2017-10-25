@@ -69,8 +69,6 @@ function sendSettings() {
 
         newPacket.settings = settings;
 
-        console.log(JSON.stringify(newPacket.settings));
-        
         var output = getOutput(newPacket);
         console.log("SENDING SETTINGS: " + output);
         smartDriveControlCharacteristic.write(output, withoutResponse);
@@ -102,17 +100,18 @@ function characteristicDataCallback(data, isNotification) {
     packetInstance.newPacket();
     var valid = packetInstance.processPacket( data );
     if (valid) {
-        //console.log(packetInstance.Type);
         switch (packetInstance.Type) {
         case PacketBinding.PacketType.Data:
-            //console.log(packetInstance.Data);
             switch (packetInstance.Data) {
             case PacketBinding.PacketDataType.DeviceInfo:
-                console.log(JSON.stringify(packetInstance.deviceInfo));
+                console.log(data);
+                console.log('GOT DEVICE INFO: '+ JSON.stringify(packetInstance.deviceInfo));
+                var device = packetInstance.deviceInfo.device;
+                console.log(device);
                 sendSettings();
                 break;
             case PacketBinding.PacketDataType.MotorInfo:
-                console.log(JSON.stringify(packetInstance.motorInfo));
+                console.log('GOT MOTOR INFO: ' +JSON.stringify(packetInstance.motorInfo));
                 switch (packetInstance.motorInfo.state) {
                 case PacketBinding.MotorState.Off:
                     break;
@@ -128,10 +127,20 @@ function characteristicDataCallback(data, isNotification) {
             }
             break;
         case PacketBinding.PacketType.Command:
-            //console.log(packetInstance.Command);
+            switch(packetInstance.Command) {
+            case PacketBinding.PacketCommandType.OTAReady:
+                // should receive Command::OTAReady from bootloader
+                // after sending Command::StartOTA
+                // we then send header and then ota file
+                console.log('OTA Bootloader ready for FW Update!');
+                break;
+            }
             break;
         case PacketBinding.PacketType.Error:
+            console.log("REBOOTING INTO OTA");
             sendStartOTA();
+            setTimeout(function() { noble.startScanning(smartDrive_service_UUIDs, true); }, 1000);
+            setTimeout(function() { sendTap(); }, 5000);
             //console.log(packetInstance.Error);
             break;
         case PacketBinding.PacketType.OTA:
@@ -190,16 +199,18 @@ function serviceDiscoverCallback(error, services) {
 }
 
 noble.on('discover', function(smartDrive) {
+    /*
     if (smartDrive.state !== 'disconnected') {
         return;
     }
-
+    */
     if (!smartDrives[smartDrive.address]) {
-        smartDrives[smartDrive.address] = smartDrive;
-
         console.log('Found Smart Drive DU');
         console.log('                      ' + smartDrive.address);
-        
+    }
+    smartDrives[smartDrive.address] = smartDrive;
+
+    if (smartDrive.state == 'disconnected') {
         smartDrive.connect(function(error) {
             if (error) {
                 console.log("Couldn't connect to " + smartDrive.uuid);
@@ -247,8 +258,8 @@ noble.on('scanStop', function() {
 noble.state = "poweredOn";
 
 setTimeout(function() {
-    noble.state = "poweredOff";
-    noble.stopScanning();
+    //noble.state = "poweredOff";
+    //noble.stopScanning();
 }, 5000); // wait for 5 seconds
 
 ///

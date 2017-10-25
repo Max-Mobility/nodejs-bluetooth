@@ -386,7 +386,7 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     ;
   
   // PACKET BINDINGS
-  emscripten::enum_<Packet::Device>("DeviceType")
+  emscripten::enum_<Packet::Device>("Device")
     .value("SmartDrive", Packet::Device::SmartDrive)
     .value("SmartDriveBluetooth", Packet::Device::SmartDriveBluetooth)
     .value("PushTracker", Packet::Device::PushTracker)
@@ -480,7 +480,7 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .value("DisconnectMPGame", Packet::Command::DisconnectMPGame)
     ;
 
-  emscripten::enum_<Packet::OTA>("PacketOTAType")
+  emscripten::enum_<Packet::OTA>("OTA")
     .value("SmartDrive", Packet::OTA::SmartDrive)
     .value("SmartDriveBluetooth", Packet::OTA::SmartDriveBluetooth)
     .value("PushTracker", Packet::OTA::PushTracker)
