@@ -70,13 +70,13 @@ function characteristicDataCallback(data, isNotification) {
         case PacketBinding.PacketType.Data:
             switch (packetInstance.Data) {
             case PacketBinding.PacketDataType.DeviceInfo:
-                console.log('GOT DEVICE INFO: '+ JSON.stringify(packetInstance.deviceInfo));
+                console.log('GOT DEVICE INFO: '+ JSON.stringify(packetInstance.deviceInfo, null, 4));
                 var device = packetInstance.deviceInfo.device;
                 console.log(device);
                 sendPacket("Command", "SetSettings", "settings", settings);
                 break;
             case PacketBinding.PacketDataType.MotorInfo:
-                console.log('GOT MOTOR INFO: ' +JSON.stringify(packetInstance.motorInfo));
+                console.log('GOT MOTOR INFO: ' +JSON.stringify(packetInstance.motorInfo, null, 4));
                 switch (packetInstance.motorInfo.state) {
                 case PacketBinding.MotorState.Off:
                     break;
@@ -88,6 +88,10 @@ function characteristicDataCallback(data, isNotification) {
                     console.log('motor state error');
                     break;
                 }
+                break;
+            case PacketBinding.PacketDataType.MotorDistance:
+                console.log('GOT MOTOR DISTANCE: ');
+                console.log('GOT MOTOR DISTANCE: '+ packetInstance.motorDistance);
                 break;
             }
             break;

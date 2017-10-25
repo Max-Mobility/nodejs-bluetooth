@@ -650,6 +650,8 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
 
     .property("OTADevice", &Packet::otaDevice)
 
+    .property("motorDistance", &Packet::motorDistance)
+
     .property("bytes", &Packet::getBytes, &Packet::setBytes)
     ;
 }
