@@ -94,7 +94,6 @@ function characteristicDataCallback(data, isNotification) {
                 console.log('GOT MOTOR DISTANCE: ' + distance + ' ticks');
                 distance = distance * (2.0 * 3.14159265358 * 3.8) / (265.714 * 63360.0);
                 console.log('                    ' + distance + ' miles');
-                process.exit(0);
                 break;
             }
             break;
