@@ -1,5 +1,17 @@
 var Binding = require('./packet_bindings');
 
+function bindingTypeToString( bindingType, bindingValue ) {
+    var valueName = null;
+    var names = Object.keys(Binding[ bindingType ]).filter(function(key) {
+        if ( Binding[ bindingType ][ key ] == bindingValue ) {
+            return true;
+        }
+    });
+    if (names.length == 1)
+        valueName = names[0];
+    return valueName;
+};
+
 function Packet(bytes) {
     this.initialize( bytes );
 };
@@ -13,8 +25,6 @@ Packet.prototype.initialize = function(bytes) {
     this.instance.newPacket();
     if (bytes) {
         this.instance.processPacket( bytes );
-        this.Type = this.getType();
-        this.SubType = this.getSubType();
     }
 };
 
@@ -44,7 +54,7 @@ Packet.prototype.send = function(characteristic, type, subType, key, data) {
         var output = this.writableBuffer();
         if (output) {
             characteristic.write(output, false); // withoutResponse = false
-            console.log("Sent: " + this.Type + "::" + this.SubType);
+            console.log("Sent: " + this.Type() + "::" + this.SubType());
         }
     }
 };
@@ -65,70 +75,34 @@ Packet.prototype.writableBuffer = function() {
 
 // ACCESSING FUNCTIONS
 
-Packet.prototype.getType = function() {
-    var index = 0,
-        types = [ "None", "Data", "Command", "Error", "OTA" ],
-        type = null;
-    if (this.bytes) {
-        type = types[ this.bytes[ index ] ];
+Packet.prototype.Type = function(newType) {
+    if (this.instance) {
+        if (newType) {
+            this.instance.Type = Binding.PacketType[ newType ];
+        }
+        else {
+            return bindingTypeToString( "PacketType", this.instance.Type );
+        }
     }
-    return type;
+    else {
+        return null;
+    }
 };
 
-Packet.prototype.getSubType = function() {
-    var index = 1,
-        subTypes = {
-            "Data": [
-                "MotorDistance",
-                "Speed",
-                "CoastTime",
-                "Pushes",
-                "MotorState",
-                "BatteryLevel",
-                "VersionInfo",
-                "DailyInfo",
-                "JourneyInfo",
-                "MotorInfo",
-                "DeviceInfo",
-                "Ready",
-                "BatteryInfo"
-            ],
-            "Command": [
-                "SetAcceleration",
-                "SetMaxSpeed",
-                "Tap",
-                "DoubleTap",
-                "SetControlMode",
-                "SetSettings",
-                "TurnOffMotor",
-                "StartJourney",
-                "StopJourney",
-                "PauseJourney",
-                "SetTime",
-                "StartOTA",
-                "StopOTA",
-                "OTAReady",
-                "CancelOTA",
-                "Wake",
-                "StartGame",
-                "StopGame",
-                "ConnectMPGame",
-                "DisconnectMPGame"
-            ],
-            "Error": [
-                "Error"
-            ],
-            "OTA": [
-                "SmartDrive",
-                "SmartDriveBluetooth",
-                "PushTracker"
-            ]
-        },
-        subType = null;
-    if (this.bytes && this.Type) {
-        subType = subTypes[ this.Type ][ this.bytes[ index ] ];
+Packet.prototype.SubType = function(newSubType) {
+    if (this.instance) {
+        var type = this.Type();
+        var bindingKey = "Packet"+type+"Type";
+        if (newSubType) {
+            this.instance[ this.instance.Type ] = Binding[ bindingKey ][ newSubType ];
+        }
+        else {
+            return bindingTypeToString( bindingKey, this.instance[ this.instance.Type ] );
+        }
     }
-    return subType;
+    else {
+        return null;
+    }
 };
 
 Packet.prototype.getPayload = function() {
