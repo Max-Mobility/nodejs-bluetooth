@@ -451,6 +451,13 @@ public:
     for (int i=0; i<b.size(); i++)
       bytes[i] = b[i];
   }
+
+  void setMotorDistance(int d) {
+    motorDistance = (uint64_t)d;
+  }
+  int getMotorDistance() const {
+    return (int)motorDistance;
+  }
     
 private:
   bool              _valid;
@@ -650,7 +657,7 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
 
     .property("OTADevice", &Packet::otaDevice)
 
-    .property("motorDistance", &Packet::motorDistance)
+    .property("motorDistance", &Packet::getMotorDistance, &Packet::setMotorDistance)
 
     .property("bytes", &Packet::getBytes, &Packet::setBytes)
     ;
