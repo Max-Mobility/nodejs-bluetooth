@@ -29,6 +29,14 @@ var settings = {
     MaxSpeed: 0.5,
 };
 
+function motorTicksToMiles(ticks) {
+    return ticks * (2.0 * 3.14159265358 * 3.8) / (265.714 * 63360.0);
+}
+
+function caseTicksToMiles(ticks) {
+    return ticks * (2.0 * 3.14159265358 * 3.8) / (36.0 * 63360.0);
+}
+
 // PACKET BUILDING FUNCTIONS
 function getOutput(packet) {
     var vectorOut = new PacketBinding.VectorInt();
@@ -92,7 +100,7 @@ function characteristicDataCallback(data, isNotification) {
             case PacketBinding.PacketDataType.MotorDistance:
                 var distance = packetInstance.motorDistance;
                 console.log('GOT MOTOR DISTANCE: ' + distance + ' ticks');
-                distance = distance * (2.0 * 3.14159265358 * 3.8) / (265.714 * 63360.0);
+                distance = motorTicksToMiles(distance);
                 console.log('                    ' + distance + ' miles');
                 break;
             }
@@ -174,11 +182,6 @@ function serviceDiscoverCallback(error, services) {
 }
 
 noble.on('discover', function(smartDrive) {
-    /*
-    if (smartDrive.state !== 'disconnected') {
-        return;
-    }
-    */
     if (!smartDrives[smartDrive.address]) {
         console.log('Found Smart Drive DU');
         console.log('                      ' + smartDrive.address);
@@ -203,50 +206,13 @@ noble.on('discover', function(smartDrive) {
 
 noble.on('stateChange', function(state) {
     if (state == "poweredOn") {
-        noble.startScanning(smartDrive_service_UUIDs, true); // any service UUID, allow duplicates
+        // only SD UUIDs, allow duplicates
+        noble.startScanning(smartDrive_service_UUIDs, true);
     }
     else {
         console.log(state);
     }
 });
 
-/*
-noble.on('scanStop', function() {
-    Object.keys(smartDrives).map(function(key) {
-        var smartDrive = smartDrives[key];
-        smartDrive.connect(function(error) {
-            if (error) {
-                console.log("Couldn't connect to " + smartDrive.uuid);
-                console.log(error);
-            }
-            else {
-                smartDrive.discoverServices(
-                    [],
-                    serviceDiscoverCallback.bind(smartDrive)
-                );
-            }
-        });
-    });
-});
-*/
-
+// NOW ACTUALLY TURN ON THE BLE ADAPTER WHICH WILL START SCANNING
 noble.state = "poweredOn";
-
-setTimeout(function() {
-    //noble.state = "poweredOff";
-    //noble.stopScanning();
-}, 5000); // wait for 5 seconds
-
-///
-
-/*
-const bluetooth = require('node-bluetooth');
-
-const device = new bluetooth.DeviceINQ();
-
-device
-    .on('finished', console.log.bind(console, 'finished'))
-    .on('found', function(address, name) {
-        console.log('Found: '+ address + ' with name ' + name);
-    }).inquire();
-*/
