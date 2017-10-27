@@ -36,8 +36,6 @@ function isControlEndpoint(uuid) {
 
 function SmartDrive(peripheral) {
     this.peripheral = peripheral;
-    this.UUID = peripheral.uuid;
-    this.address = peripheral.address;
     this.characteristic = null;
 
     this.settings = {
@@ -116,7 +114,7 @@ SmartDrive.prototype.updateState = function(packet) {
             this.state.driveTime         = packet.data("motorInfo").driveTime;
             break;
         }
-        console.log("State:");
+        console.log("State for "+this.address()+":");
         console.log(this.state);
     }
 };
@@ -137,13 +135,17 @@ SmartDrive.prototype.handleError = function(packet) {
         console.log( "Got Error: " + packet.SubType() );
         switch (packet.SubType()) {
         case "GyroRange":
-            console.log("Starting OTA");
-            var p = new Packet();
-            p.send( this.characteristic, "Command", "StartOTA", "OTADevice", Binding.Device.SmartDrive );
-            p.destroy();
+            this.startOTA();
             break;
         }
     }
+};
+
+SmartDrive.prototype.startOTA = function() {
+    console.log("Starting OTA");
+    var p = new Packet();
+    p.send( this.characteristic, "Command", "StartOTA", "OTADevice", Binding.Device.SmartDrive );
+    p.destroy();
 };
 
 SmartDrive.prototype.sendHeader = function() {
