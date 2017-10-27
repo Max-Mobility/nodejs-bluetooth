@@ -1,69 +1,12 @@
 var noble = require('noble');
 
-var PacketBinding = require('./packet_bindings');
+var SmartDrive = require('./smartDrive');
 
-
-// CONFIG FOR BLUETOOTH
-var smartDrive_service_UUIDs = [
-    "0cd51666e7cb469b8e4d2742f1ba7723"
-];
-var smartDrive_control_characteristic_UUIDs = [
-    "e9add780b0424876aae1112855353cc1"
-];
 var smartDriveControlCharacteristic = null;
 var withoutResponse = false;
 
 // ALL THE SMARTDRIVES WE'VE FOUND
 var smartDrives = {};
-
-
-// SETTINGS TO SEND TO SMARTDRIVE
-// must have all the fields
-var settings = {
-    ControlMode: PacketBinding.SmartDriveControlMode.Advanced,
-    Units: PacketBinding.Units.English,
-    Flags: 0,
-    Padding: 0,
-    TapSensitivity: 1.0,
-    Acceleration: 0.5,
-    MaxSpeed: 0.5,
-};
-
-function motorTicksToMiles(ticks) {
-    return ticks * (2.0 * 3.14159265358 * 3.8) / (265.714 * 63360.0);
-}
-
-function caseTicksToMiles(ticks) {
-    return ticks * (2.0 * 3.14159265358 * 3.8) / (36.0 * 63360.0);
-}
-
-// PACKET BUILDING FUNCTIONS
-function getOutput(packet) {
-    var vectorOut = new PacketBinding.VectorInt();
-    vectorOut = packet.format();
-    var output = Buffer.alloc(vectorOut.size());
-    for (var i=0; i<vectorOut.size(); i++) {
-        output[i] = vectorOut.get(i);
-    }
-    return output;
-}
-
-function sendPacket(type, subType, key, data) {
-    if (smartDriveControlCharacteristic) {
-        var p = new PacketBinding.Packet();
-
-        p.Type = PacketBinding.PacketType[type];
-        p[type] = PacketBinding['Packet'+type+'Type'][subType];
-        if (key && data) {
-            p[key] = data;
-        }
-        
-        var output = getOutput(p);
-        smartDriveControlCharacteristic.write(output, withoutResponse);
-        console.log("Sent: " + type + "::"+subType);
-        p.delete();
-    }
-}
 
 function characteristicDataCallback(data, isNotification) {
     var characteristic = this;
@@ -113,12 +56,6 @@ function characteristicDataCallback(data, isNotification) {
                 // we then send header and then ota file
                 console.log('OTA Bootloader ready for FW Update!');
                 // NOW SEND HEADER
-                var header = new PacketBinding.VectorChar();
-                //header.resize(16);
-                header.push_back(19);
-                for (var i=0;i<15;i++)
-                    header.push_back(0);
-                sendPacket("OTA", "SmartDrive", "bytes", header);
                 break;
             }
             break;
@@ -146,15 +83,12 @@ function characteristicDiscoverCallback(error, characteristics) {
         console.log("Discovered SmartDrive Characteristics");
         //console.log(characteristics);
         characteristics.map(function(characteristic) {
-            if (smartDrive_control_characteristic_UUIDs.indexOf(characteristic.uuid) > -1) {
-                console.log('Have SD Control endpoint: ' + characteristic.uuid);
-                smartDriveControlCharacteristic = characteristic;
-                setTimeout(function() { sendPacket("Command", "Tap"); }, 1000);
-                setTimeout(function() { sendPacket("Command", "Tap"); }, 1500);
+            if ( SmartDrive.isControlEndpoint( characteristic.uuid ) ) {
+                smartDrive.controlEndpoint( characteristic );
             }
             characteristic.on(
                 'data',
-                characteristicDataCallback.bind(characteristic)
+                smartDrive.update.bind(smartDrive)
             );
             characteristic.subscribe();
         });
@@ -171,7 +105,7 @@ function serviceDiscoverCallback(error, services) {
         console.log("Discovered SmartDrive Service");
         //console.log(services);
         services.map(function(service) {
-            if (smartDrive_service_UUIDs.indexOf(service.uuid) > -1) {
+            if (SmartDrive.isSmartDriveService(service.uuid)) {
                 service.discoverCharacteristics(
                     [],
                     characteristicDiscoverCallback.bind(smartDrive)
@@ -181,23 +115,23 @@ function serviceDiscoverCallback(error, services) {
     }
 }
 
-noble.on('discover', function(smartDrive) {
-    if (!smartDrives[smartDrive.address]) {
+noble.on('discover', function(peripheral) {
+    if (!smartDrives[peripheral.address]) {
         console.log('Found Smart Drive DU');
-        console.log('                      ' + smartDrive.address);
+        console.log('                      ' + peripheral.address);
     }
-    smartDrives[smartDrive.address] = smartDrive;
+    smartDrives[peripheral.address] = SmartDrive.SmartDrive(peripheral);
 
-    if (smartDrive.state == 'disconnected') {
-        smartDrive.connect(function(error) {
+    if (peripheral.state == 'disconnected') {
+        peripheral.connect(function(error) {
             if (error) {
                 console.log("Couldn't connect to " + smartDrive.uuid);
                 console.log(error);
             }
             else {
-                smartDrive.discoverServices(
-                    [],
-                    serviceDiscoverCallback.bind(smartDrive)
+                peripheral.discoverServices(
+                    SmartDrive.getServiceUUIDs(),
+                    serviceDiscoverCallback.bind( smartDrives[peripheral.address] )
                 );
             }
         });
@@ -207,7 +141,7 @@ noble.on('discover', function(smartDrive) {
 noble.on('stateChange', function(state) {
     if (state == "poweredOn") {
         // only SD UUIDs, allow duplicates
-        noble.startScanning(smartDrive_service_UUIDs, true);
+        noble.startScanning(SmartDrive.getServiceUUIDs(), true);
     }
     else {
         console.log(state);

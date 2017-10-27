@@ -97,12 +97,19 @@ Packet.prototype.SubType = function(newSubType) {
             this.instance[ this.instance.Type ] = Binding[ bindingKey ][ newSubType ];
         }
         else {
-            return bindingTypeToString( bindingKey, this.instance[ this.instance.Type ] );
+            return bindingTypeToString( bindingKey, this.instance[ type ] );
         }
     }
     else {
         return null;
     }
+};
+
+Packet.prototype.data = function(key) {
+    if (this.instance) {
+        return this.instance[key];
+    }
+    return null;
 };
 
 Packet.prototype.getPayload = function() {

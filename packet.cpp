@@ -625,6 +625,17 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .value("PushTracker", Packet::OTA::PushTracker)
     ;
 
+  emscripten::enum_<Packet::OTA>("PacketErrorType")
+    .value("NoError", SmartDrive::Error::NoError)
+    .value("BatteryVoltage", SmartDrive::Error::BatteryVoltage)
+    .value("MotorPhases", SmartDrive::Error::MotorPhases)
+    .value("OverCurrent", SmartDrive::Error::OverCurrent)
+    .value("OverTemperature", SmartDrive::Error::OverTemperature)
+    .value("GyroRange", SmartDrive::Error::GyroRange)
+    .value("OTAUnavailable", SmartDrive::Error::OTAUnavailable)
+    .value("BLEDisconnect", SmartDrive::Error::BLEDisconnect)
+    ;
+    
   emscripten::class_<Packet>("Packet")
     .constructor<>()
     .function("valid", &Packet::valid)
