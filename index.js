@@ -8,7 +8,7 @@ var smartDrives = {};
 function characteristicDiscoverCallback(error, characteristics) {
     var smartDrive = this;
     if (error) {
-        console.log("Couldn't get characteristics from " + smartDrive.uuid);
+        console.log("Couldn't get characteristics from " + smartDrive.uuid());
         console.log(error);
     }
     else {
@@ -30,7 +30,7 @@ function characteristicDiscoverCallback(error, characteristics) {
 function serviceDiscoverCallback(error, services) {
     var smartDrive = this;
     if (error) {
-        console.log("Couldn't get services from " + smartDrive.uuid);
+        console.log("Couldn't get services from " + smartDrive.uuid());
         console.log(error);
     }
     else {
@@ -57,7 +57,7 @@ noble.on('discover', function(peripheral) {
     if (peripheral.state == 'disconnected') {
         peripheral.connect(function(error) {
             if (error) {
-                console.log("Couldn't connect to " + smartDrive.uuid);
+                console.log("Couldn't connect to " + smartDrive.uuid());
                 console.log(error);
             }
             else {
