@@ -329,7 +329,7 @@ SmartDrive.prototype.sendFirmware = function(delay) {
             },
         });
         status.start({
-            pattern: '{spinner.cyan} | OTA: {OTA.bar} {OTA.percentage.magenta}'
+            pattern: ' {spinner.cyan} | OTA: {OTA.bar} {OTA.percentage.magenta}'
         });
 
         var intId = -1;
