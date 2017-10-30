@@ -229,7 +229,7 @@ SmartDrive.prototype.sendOTA = function() {
     function waitForReady(delay, resolution) {
         console.log("Waiting for OTA Ready from " + sd.address());
         if (resolution) {
-            setTimeout(function() {
+            sd.waitingTimeout = setTimeout(function() {
                 if (sd.peripheral.state == 'connected') {
                     if (sd.state.otaReady) {
                         resolution();
@@ -243,7 +243,7 @@ SmartDrive.prototype.sendOTA = function() {
         }
         else {
             return new Promise(function(resolve) {
-                setTimeout(function() {
+                sd.waitingTimeout = setTimeout(function() {
                     if (sd.peripheral.state == 'connected') {
                         if (sd.state.otaReady) {
                             resolve();
@@ -260,6 +260,7 @@ SmartDrive.prototype.sendOTA = function() {
     
     waitForReady(500)
         .then(function() {
+            clearTimeout(sd.waitingTimeout);
             return sd.sendHeader(10);
         })
         .then(function() {
@@ -299,6 +300,7 @@ SmartDrive.prototype.sendHeader = function(delay) {
 
 SmartDrive.prototype.sendFirmware = function(delay) {
     var sd = this;
+
     return new Promise(function(resolve) {
         if (sd.firmware == undefined || sd.characteristic == undefined)
             resolve();
@@ -307,34 +309,52 @@ SmartDrive.prototype.sendFirmware = function(delay) {
         var fileSize = sd.firmware.length;
         var index = 0;
 
-        var interval = delay || 0;
+        var startTime = process.uptime();
 
-        var intId = setInterval(function() {
-            // figure out the right length
-            var len = Math.min(fileSize - index, payloadSize);
-            // get a pointer to the right section of the firmware
-            const payload = Buffer.from(sd.firmware, index, len);
+        var status = require('node-status');
+        var ota = status.addItem('OTA', {
+            label: 'OTA',
+            max: fileSize,
+            custom: function() {
+                return `${this.count} / ${this.max}`;
+            },
+        });
+        status.start({
+            pattern: '{spinner.cyan} | OTA: {OTA.bar} {OTA.custom.magenta}'
+        });
 
-            // copy the firmware section into a byte array
-            var bytes = new Binding.VectorInt();
-            for (var i=0;i<len;i++)
-                bytes.push_back(payload[i]);
 
-            // make and send the packet
-            var p = new Packet();
-            p.send( sd.characteristic, "OTA", "SmartDrive", "bytes", bytes, len);
-            p.destroy();
-            bytes.delete();
+        var writeFirmwareSector = function() {
+            if (index < fileSize) {
+                // figure out the right length
+                var len = Math.min(fileSize - index, payloadSize);
+                // get a pointer to the right section of the firmware
+                const payload = Buffer.from(sd.firmware, index, len);
 
-            index += payloadSize;
+                // copy the firmware section into a byte array
+                var bytes = new Binding.VectorInt();
+                for (var i=0;i<len;i++)
+                    bytes.push_back(payload[i]);
 
-            console.log('Sent ' + index + ' / ' + fileSize + ' bytes');
+                // make and send the packet
+                var p = new Packet();
+                sd.characteristic.once('write', writeFirmwareSector);
+                p.send( sd.characteristic, "OTA", "SmartDrive", "bytes", bytes, len);
+                p.destroy();
+                bytes.delete();
+
+                index += payloadSize;
+                ota.inc( payloadSize );
+            }
 
             if (index >= fileSize) {
-                clearInterval(intId);
+                status.stop();
+                console.log('\n');
                 resolve();
             }
-        }, interval);
+        }
+
+        writeFirmwareSector();
     });
 };
 
