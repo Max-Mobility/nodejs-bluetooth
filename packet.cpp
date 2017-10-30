@@ -242,7 +242,7 @@ public:
   };
 
   // The length of data bytes contained in the packet
-  char dataLength;
+  int dataLength;
 
   // The actual type contained in the packet
   Type          type;
@@ -432,14 +432,23 @@ public:
     case Packet::Type::OTA:
       output.push_back((uint8_t)ota);
       dataLen = dataLength;
+      /*
+      for (int i=0; i<dataLen; i++) {
+        printf("0x%.2X ", bytes[i]);
+      }
+      printf("\n");
+      */
       break;
     default:
       return std::vector<uint8_t>();
     }
-    numBytes += dataLen;
+
     for (int i=0; i<dataLen; i++) {
       output.push_back(bytes[i]);
     }
+
+    numBytes += dataLen;
+
     output.shrink_to_fit();
     return output;
   }
@@ -447,12 +456,13 @@ public:
   std::vector<uint8_t> getBytes() const {
     std::vector<uint8_t> b;
     for (int i=0; i<maxDataLength; i++)
-      b.push_back(bytes[i]);
+      b.push_back((uint8_t)bytes[i]);
     return b;
   }
   void setBytes(std::vector<uint8_t> b) {
-    for (int i=0; i<b.size(); i++)
-      bytes[i] = b[i];
+    for (int i=0; i<b.size(); i++) {
+      bytes[i] = (uint8_t)b[i];
+    }
   }
 
   void setMotorDistance(int d) {

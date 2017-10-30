@@ -44,6 +44,10 @@ function isControlEndpoint(uuid) {
 
 function SmartDrive(peripheral) {
     this.peripheral = peripheral;
+    this.initialize();
+};
+
+SmartDrive.prototype.initialize = function() {
     this.characteristic = null;
 
     this.settings = {
@@ -105,11 +109,15 @@ SmartDrive.prototype.update = function( bytes ) {
 
 SmartDrive.prototype.updateState = function(packet) {
     if (packet.Type() == "Data") {
+        this.state.otaReady = false;
         switch (packet.SubType()) {
         case "DeviceInfo":
             var device = bindingTypeToString( "Device", packet.data("deviceInfo").device );
             console.log('Got device info for device: ' + device);
             console.log('                            ' + packet.data("deviceInfo").version);
+            if (device == 'SmartDriveBluetooth') {
+                this.sendOTA();
+            }
             break;
         case "MotorDistance":
             this.state.totalDistance = this.motorTicksToMiles( packet.data("motorDistance") );
@@ -123,8 +131,8 @@ SmartDrive.prototype.updateState = function(packet) {
             this.state.driveTime         = packet.data("motorInfo").driveTime;
             break;
         }
-        console.log("State for "+this.address()+":");
-        console.log(this.state);
+        console.log("Got state for "+this.address());
+        //console.log(this.state);
     }
 };
 
@@ -157,9 +165,6 @@ SmartDrive.prototype.makeHeader = function(version, checksum) {
     this.header[5] = (checksum >>> 8) & 0xFF;
     this.header[6] = (checksum >>> 16) & 0xFF;
     this.header[7] = (checksum >>> 24) & 0xFF;
-
-    console.log("Made header:");
-    console.log(this.header);
 };
 
 SmartDrive.prototype.loadFirmware = function(fileName, version) {
@@ -227,7 +232,6 @@ SmartDrive.prototype.sendOTA = function() {
     sd.startOTA();
 
     function waitForReady(delay, resolution) {
-        console.log("Waiting for OTA Ready from " + sd.address());
         if (resolution) {
             sd.waitingTimeout = setTimeout(function() {
                 if (sd.peripheral.state == 'connected') {
@@ -242,6 +246,7 @@ SmartDrive.prototype.sendOTA = function() {
             }, delay);
         }
         else {
+            console.log("Waiting for OTA Ready from " + sd.address());
             return new Promise(function(resolve) {
                 sd.waitingTimeout = setTimeout(function() {
                     if (sd.peripheral.state == 'connected') {
@@ -264,10 +269,10 @@ SmartDrive.prototype.sendOTA = function() {
             return sd.sendHeader(10);
         })
         .then(function() {
-            return sd.sendFirmware(5);
+            return sd.sendFirmware(10);
         })
         .then(function() {
-            return sd.stopOTA(10);
+            return sd.stopOTA(500);
         });
 };
 
@@ -282,14 +287,16 @@ SmartDrive.prototype.sendHeader = function(delay) {
         timeout = delay || 0;
 
         setTimeout(function() {
+            console.log('Sending OTA header');
+
             var bytes = new Binding.VectorInt();
             var headerSize = 16;
-            for (var i=0;i<headerSize;i++)
+            for (var i=0;i<headerSize;i++) {
                 bytes.push_back(sd.header[i]);
+            }
 
             var p = new Packet();
-            p.dataLength = headerSize;
-            p.send( sd.characteristic, "OTA", "SmartDrive", "bytes", bytes);
+            p.send( sd.characteristic, "OTA", "SmartDrive", "bytes", bytes, headerSize);
             p.destroy();
             bytes.delete();
 
@@ -300,6 +307,8 @@ SmartDrive.prototype.sendHeader = function(delay) {
 
 SmartDrive.prototype.sendFirmware = function(delay) {
     var sd = this;
+
+    console.log('Sending OTA firmware');
 
     return new Promise(function(resolve) {
         if (sd.firmware == undefined || sd.characteristic == undefined)
@@ -323,24 +332,24 @@ SmartDrive.prototype.sendFirmware = function(delay) {
             pattern: '{spinner.cyan} | OTA: {OTA.bar} {OTA.custom.magenta}'
         });
 
+        var intId = -1;
 
+        var p = new Packet();
         var writeFirmwareSector = function() {
             if (index < fileSize) {
                 // figure out the right length
                 var len = Math.min(fileSize - index, payloadSize);
-                // get a pointer to the right section of the firmware
-                const payload = Buffer.from(sd.firmware, index, len);
 
                 // copy the firmware section into a byte array
                 var bytes = new Binding.VectorInt();
-                for (var i=0;i<len;i++)
-                    bytes.push_back(payload[i]);
+                for (var i=0;i<len;i++) {
+                    bytes.push_back(sd.firmware[index+i]);
+                }
 
                 // make and send the packet
-                var p = new Packet();
-                sd.characteristic.once('write', writeFirmwareSector);
+                if (intId == -1)
+                    sd.characteristic.once('write', writeFirmwareSector);
                 p.send( sd.characteristic, "OTA", "SmartDrive", "bytes", bytes, len);
-                p.destroy();
                 bytes.delete();
 
                 index += payloadSize;
@@ -348,54 +357,60 @@ SmartDrive.prototype.sendFirmware = function(delay) {
             }
 
             if (index >= fileSize) {
+                p.destroy();
+                if (intId != -1)
+                    clearInterval(intId);
                 status.stop();
                 console.log('\n');
                 resolve();
             }
         }
 
-        writeFirmwareSector();
+        var interval = delay || 5;
+        intId = setInterval(writeFirmwareSector, interval);
+
+        //writeFirmwareSector();
     });
 };
 
 // BLUETOOTH HANDLER CALLBACKS
 
 SmartDrive.prototype.connectCallback = function(error) {
-    var smartDrive = this;
+    var sd = this;
+    sd.initialize();
     if (error) {
-        console.log("Couldn't connect to " + smartDrive.uuid());
+        console.log("Couldn't connect to " + sd.uuid());
         console.log(error);
     }
     else {
-        smartDrive.peripheral.once('disconnect', smartDrive.disconnectCallback.bind(smartDrive) );
-        smartDrive.peripheral.discoverServices(
+        sd.peripheral.once('disconnect', sd.disconnectCallback.bind(sd) );
+        sd.peripheral.discoverServices(
             getServiceUUIDs(),
-            smartDrive.serviceDiscoverCallback.bind( smartDrive )
+            sd.serviceDiscoverCallback.bind( sd )
         );
     }
 };
 
 SmartDrive.prototype.disconnectCallback = function() {
     var sd = this;
+    sd.initialize();
     console.log("SmartDrive " + sd.address() + " was disconnected, reconnecting...");
-    sd.characteristic = undefined;
     sd.peripheral.connect( sd.connectCallback.bind(sd) );
 };
 
 SmartDrive.prototype.serviceDiscoverCallback = function(error, services) {
-    var smartDrive = this;
+    var sd = this;
     if (error) {
-        console.log("Couldn't get services from " + smartDrive.uuid());
+        console.log("Couldn't get services from " + sd.uuid());
         console.log(error);
     }
     else {
         console.log("Discovered SmartDrive Service");
-        //console.log(services);
         services.map(function(service) {
             if (isSmartDriveService(service.uuid)) {
                 service.discoverCharacteristics(
                     [],
-                    smartDrive.characteristicDiscoverCallback.bind(smartDrive)
+                    sd.characteristicDiscoverCallback.bind(sd)
                 );
             }
         });
@@ -403,21 +418,20 @@ SmartDrive.prototype.serviceDiscoverCallback = function(error, services) {
 };
 
 SmartDrive.prototype.characteristicDiscoverCallback = function(error, characteristics) {
-    var smartDrive = this;
+    var sd = this;
     if (error) {
-        console.log("Couldn't get characteristics from " + smartDrive.uuid());
+        console.log("Couldn't get characteristics from " + sd.uuid());
         console.log(error);
     }
     else {
         console.log("Discovered SmartDrive Characteristics");
-        //console.log(characteristics);
         characteristics.map(function(characteristic) {
             if ( isControlEndpoint( characteristic.uuid ) ) {
-                smartDrive.controlEndpoint( characteristic );
+                sd.controlEndpoint( characteristic );
             }
             characteristic.on(
                 'data',
-                smartDrive.update.bind(smartDrive)
+                sd.update.bind(sd)
             );
             characteristic.subscribe();
         });

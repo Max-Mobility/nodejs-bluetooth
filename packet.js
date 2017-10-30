@@ -12,6 +12,12 @@ function bindingTypeToString( bindingType, bindingValue ) {
     return valueName;
 };
 
+function decimalToHex(d) {
+    var hex = Number(d).toString(16);
+    hex = "00".substr(0, 2 - hex.length) + hex; 
+    return hex.toUpperCase();
+}
+
 function Packet(bytes) {
     this.initialize( bytes );
 };
@@ -52,7 +58,7 @@ Packet.prototype.send = function(characteristic, type, subType, key, data, lengt
             this.makePacket(type, subType, key, data);
         }
         if (length)
-            this.instance.dataLength = length;
+            this.instance.length = length;
         var output = this.writableBuffer(length);
         if (output) {
             characteristic.write(output, false); // withoutResponse = false
@@ -63,14 +69,19 @@ Packet.prototype.send = function(characteristic, type, subType, key, data, lengt
 
 Packet.prototype.writableBuffer = function(length) {
     var output = null;
+
     if (this.instance) {
         var vectorOut = new Binding.VectorInt();
         vectorOut = this.instance.format();
         var len = length || vectorOut.size();
         output = Buffer.alloc(len);
+        var str = ""
         for (var i=0; i<vectorOut.size(); i++) {
             output[i] = vectorOut.get(i);
+            str += "0x"+decimalToHex(vectorOut.get(i))+" ";
         }
+        str += "\n";
+        //console.log(str);
         vectorOut.delete();
     }
     return output;
