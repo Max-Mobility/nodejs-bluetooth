@@ -56,7 +56,7 @@ Packet.prototype.send = function(characteristic, type, subType, key, data, lengt
         var output = this.writableBuffer(length);
         if (output) {
             characteristic.write(output, false); // withoutResponse = false
-            console.log("Sent: " + this.Type() + "::" + this.SubType());
+            //console.log("Sent: " + this.Type() + "::" + this.SubType());
         }
     }
 };

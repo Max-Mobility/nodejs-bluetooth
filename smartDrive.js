@@ -154,9 +154,12 @@ SmartDrive.prototype.makeHeader = function(version, checksum) {
     this.header = Buffer.alloc(16);
     this.header[0] = version & 0xFF;
     this.header[4] = checksum & 0xFF;
-    this.header[5] = (checksum >> 8) & 0xFF;
-    this.header[6] = (checksum >> 16) & 0xFF;
-    this.header[7] = (checksum >> 24) & 0xFF;
+    this.header[5] = (checksum >>> 8) & 0xFF;
+    this.header[6] = (checksum >>> 16) & 0xFF;
+    this.header[7] = (checksum >>> 24) & 0xFF;
+
+    console.log("Made header:");
+    console.log(this.header);
 };
 
 SmartDrive.prototype.loadFirmware = function(fileName, version) {
@@ -201,27 +204,36 @@ SmartDrive.prototype.sendOTA = function() {
     var sd = this;
     this.startOTA();
 
-    function waitForReady(delay) {
+    function waitForReady(delay, resolution) {
         console.log("Waiting for OTA Ready from " + sd.address());
-        return new Promise(function(resolve) {
+        if (resolution) {
             setTimeout(function() {
-                if (sd.peripheral.state == 'disconnected') {
-                    console.log('SD Disconnected due to reboot');
-                    sd.characteristic = undefined;
-                    sd.peripheral.connect( sd.connectCallback.bind(sd) );
-                    resolve(waitForReady(delay));
-                }
-                else {
+                if (sd.peripheral.state == 'connected') {
                     if (sd.state.otaReady) {
-                        resolve();
+                        resolution();
                     }
                     else {
                         sd.startOTA();
-                        resolve(waitForReady(delay));
                     }
                 }
+                waitForReady(delay, resolution);
             }, delay);
-        });
+        }
+        else {
+            return new Promise(function(resolve) {
+                setTimeout(function() {
+                    if (sd.peripheral.state == 'connected') {
+                        if (sd.state.otaReady) {
+                            resolve();
+                        }
+                        else {
+                            sd.startOTA();
+                        }
+                    }
+                    waitForReady(delay, resolve);
+                }, delay);
+            });
+        }
     }
     
     waitForReady(500)
@@ -230,34 +242,13 @@ SmartDrive.prototype.sendOTA = function() {
             sd.sendFirmware();
             sd.stopOTA();
         });
-    /*
-
-            return new Promise(function(resolve) {
-                setTimeout(function() {
-                    sd.sendHeader();
-                    resolve();
-                }, 500);
-            });
-        })
-        .then(function() {
-            return sd.sendFirmware();
-        })
-        .then(function() {
-            return new Promise(function(resolve) {
-                setTimeout(function() {
-                    sd.stopOTA();
-                    resolve();
-                }, 500);
-            });
-        });
-    */
 };
 
 SmartDrive.prototype.sendHeader = function() {
     if (this.header == undefined || this.characteristic == undefined)
         return;
 
-    var bytes = new Binding.VectorChar();
+    var bytes = new Binding.VectorInt();
     var headerSize = 16;
     for (var i=0;i<headerSize;i++)
         bytes.push_back(this.header[i]);
@@ -273,30 +264,30 @@ SmartDrive.prototype.sendFirmware = function() {
     if (this.firmware == undefined || this.characteristic == undefined)
         return;
     
-    return new Promise(function(resolve) {
-        var payloadSize = 16;
-        var fileSize = this.firmware.length;
-        for (var i=0; i<fileSize;) {
-            // figure out the right length
-            var len = Math.min(fileSize - i, payloadSize);
-            // get a pointer to the right section of the firmware
-            const payload = Buffer.from(this.firmware, i, len);
+    var payloadSize = 16;
+    var fileSize = this.firmware.length;
+    for (var i=0; i<fileSize; i+=payloadSize) {
+        // figure out the right length
+        var len = Math.min(fileSize - i, payloadSize);
+        // get a pointer to the right section of the firmware
+        const payload = Buffer.from(this.firmware, i, len);
 
-            // copy the firmware section into a byte array
-            var bytes = new Binding.VectorChar();
-            for (var i=0;i<len;i++)
-                bytes.push_back(payload[i]);
+        // copy the firmware section into a byte array
+        var bytes = new Binding.VectorInt();
+        for (var j=0;j<len;j++)
+            bytes.push_back(payload[j]);
 
-            // make and send the packet
-            var p = new Packet();
-            p.send( this.characteristic, "OTA", "SmartDrive", "bytes", bytes, len);
-            p.destroy();
-            bytes.delete();
+        // make and send the packet
+        var p = new Packet();
+        p.send( this.characteristic, "OTA", "SmartDrive", "bytes", bytes, len);
+        p.destroy();
+        bytes.delete();
 
-            i += payloadSize;
-        }
-    });
+        console.log('Sent ' + i + ' / ' + fileSize + ' bytes');
+    }
 };
+
+// BLUETOOTH HANDLER CALLBACKS
 
 SmartDrive.prototype.connectCallback = function(error) {
     var smartDrive = this;
@@ -305,11 +296,19 @@ SmartDrive.prototype.connectCallback = function(error) {
         console.log(error);
     }
     else {
+        smartDrive.peripheral.once('disconnect', smartDrive.disconnectCallback.bind(smartDrive) );
         smartDrive.peripheral.discoverServices(
             getServiceUUIDs(),
             smartDrive.serviceDiscoverCallback.bind( smartDrive )
         );
     }
+};
+
+SmartDrive.prototype.disconnectCallback = function() {
+    var sd = this;
+    console.log("SmartDrive " + sd.address() + " was disconnected, reconnecting...");
+    sd.characteristic = undefined;
+    sd.peripheral.connect( sd.connectCallback.bind(sd) );
 };
 
 SmartDrive.prototype.serviceDiscoverCallback = function(error, services) {

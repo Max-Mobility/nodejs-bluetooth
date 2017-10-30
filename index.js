@@ -9,12 +9,16 @@ noble.on('discover', function(peripheral) {
     if (!smartDrives[peripheral.address]) {
         console.log('Found Smart Drive DU');
         console.log('                      ' + peripheral.address);
-    }
-    smartDrives[peripheral.address] = SmartDrive.SmartDrive(peripheral);
 
-    var sd = smartDrives[peripheral.address]
-    if (peripheral.state == 'disconnected') {
-        peripheral.connect( sd.connectCallback.bind(sd) );
+        smartDrives[peripheral.address] = SmartDrive.SmartDrive(peripheral);
+
+        var sd = smartDrives[peripheral.address]
+
+        sd.loadFirmware("../driveunit_mcu/src/MX2+.ota", 0x13);
+        
+        if (peripheral.state == 'disconnected') {
+            peripheral.connect( sd.connectCallback.bind(sd) );
+        }
     }
 });
 

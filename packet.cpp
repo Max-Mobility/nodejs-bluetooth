@@ -287,7 +287,7 @@ public:
     float                    acceleration;
     float                    maxSpeed;
     uint64_t                 errorId;               /** Unique ID when an Error Packet is sent. **/
-    char                     bytes[maxDataLength];
+    uint8_t                  bytes[maxDataLength];
   };
 
   Packet() {
@@ -366,7 +366,7 @@ public:
     int dataLen = 0;
     switch (type) {
     case Packet::Type::Data:
-      output.push_back((char)data);
+      output.push_back((uint8_t)data);
       switch (data) {
       case Packet::Data::MotorDistance:
         dataLen = sizeof(motorDistance);
@@ -444,13 +444,13 @@ public:
     return output;
   }
 
-  std::vector<char> getBytes() const {
-    std::vector<char> b;
+  std::vector<uint8_t> getBytes() const {
+    std::vector<uint8_t> b;
     for (int i=0; i<maxDataLength; i++)
       b.push_back(bytes[i]);
     return b;
   }
-  void setBytes(std::vector<char> b) {
+  void setBytes(std::vector<uint8_t> b) {
     for (int i=0; i<b.size(); i++)
       bytes[i] = b[i];
   }
@@ -470,7 +470,6 @@ private:
 // BINDING CODE FOR JAVASCRIPT
 EMSCRIPTEN_BINDINGS(packet_bindings) {
   emscripten::register_vector<uint8_t>("VectorInt");
-  emscripten::register_vector<char>("VectorChar");
   
   emscripten::enum_<Motor::State>("MotorState")
     .value("Off", Motor::State::Off)
