@@ -13,6 +13,14 @@ function bindingTypeToString( bindingType, bindingValue ) {
     return valueName;
 };
 
+function checkSum(data, length, mask) {
+    var cs = 0x00;
+    for (var i=0; i<length; i++)
+        cs += data[i];
+    cs = (cs & mask) ^ mask;
+    return cs;
+};
+
 // CONFIG FOR BLUETOOTH
 var smartDrive_service_UUIDs = [
     "0cd51666e7cb469b8e4d2742f1ba7723"
@@ -59,6 +67,7 @@ function SmartDrive(peripheral) {
         lastDriveDistance: 0,
         totalDistance: 0,
         driveTime: 0,
+        otaReady: false
     };
 };
 
@@ -124,7 +133,7 @@ SmartDrive.prototype.handleCommand = function(packet) {
         switch (packet.SubType()) {
         case "OTAReady":
             console.log('OTA Bootloader ready for FW Update!');
-            this.sendHeader();
+            this.state.otaReady = true;
             break;
         }
     }
@@ -135,28 +144,214 @@ SmartDrive.prototype.handleError = function(packet) {
         console.log( "Got Error: " + packet.SubType() );
         switch (packet.SubType()) {
         case "GyroRange":
-            this.startOTA();
+            this.sendOTA();
             break;
         }
     }
 };
 
+SmartDrive.prototype.makeHeader = function(version, checksum) {
+    this.header = Buffer.alloc(16);
+    this.header[0] = version & 0xFF;
+    this.header[4] = checksum & 0xFF;
+    this.header[5] = (checksum >> 8) & 0xFF;
+    this.header[6] = (checksum >> 16) & 0xFF;
+    this.header[7] = (checksum >> 24) & 0xFF;
+};
+
+SmartDrive.prototype.loadFirmware = function(fileName, version) {
+    // loads the firmware file, computes the checksum, and makes the
+    // header for sending the firmware file to the SD
+    if (fileName == undefined)
+        throw new String("Must provide filename!");
+    if (version == undefined)
+        version = 0x10;
+
+    var fs = require('fs');
+    try {
+        this.firmware = fs.readFileSync(fileName);
+        var cs = checkSum(this.firmware, this.firmware.length, 0xFFFFFFFF);
+        this.makeHeader(version, cs);
+    }
+    catch (e) {
+        console.error("Couldn't open: "+fileName);
+        console.error(e);
+    }
+};
+
 SmartDrive.prototype.startOTA = function() {
-    console.log("Starting OTA");
-    var p = new Packet();
-    p.send( this.characteristic, "Command", "StartOTA", "OTADevice", Binding.Device.SmartDrive );
-    p.destroy();
+    if (this.characteristic) {
+        console.log("Starting OTA");
+        var p = new Packet();
+        p.send( this.characteristic, "Command", "StartOTA", "OTADevice", Binding.Device.SmartDrive );
+        p.destroy();
+    }
+};
+
+SmartDrive.prototype.stopOTA = function() {
+    if (this.characteristic) {
+        console.log("Stopping OTA");
+        var p = new Packet();
+        p.send( this.characteristic, "Command", "StopOTA", "OTADevice", Binding.Device.SmartDrive );
+        p.destroy();
+    }
+};
+
+SmartDrive.prototype.sendOTA = function() {
+    var sd = this;
+    this.startOTA();
+
+    function waitForReady(delay) {
+        console.log("Waiting for OTA Ready from " + sd.address());
+        return new Promise(function(resolve) {
+            setTimeout(function() {
+                if (sd.peripheral.state == 'disconnected') {
+                    console.log('SD Disconnected due to reboot');
+                    sd.characteristic = undefined;
+                    sd.peripheral.connect( sd.connectCallback.bind(sd) );
+                    resolve(waitForReady(delay));
+                }
+                else {
+                    if (sd.state.otaReady) {
+                        resolve();
+                    }
+                    else {
+                        sd.startOTA();
+                        resolve(waitForReady(delay));
+                    }
+                }
+            }, delay);
+        });
+    }
+    
+    waitForReady(500)
+        .then(function() {
+            sd.sendHeader();
+            sd.sendFirmware();
+            sd.stopOTA();
+        });
+    /*
+
+            return new Promise(function(resolve) {
+                setTimeout(function() {
+                    sd.sendHeader();
+                    resolve();
+                }, 500);
+            });
+        })
+        .then(function() {
+            return sd.sendFirmware();
+        })
+        .then(function() {
+            return new Promise(function(resolve) {
+                setTimeout(function() {
+                    sd.stopOTA();
+                    resolve();
+                }, 500);
+            });
+        });
+    */
 };
 
 SmartDrive.prototype.sendHeader = function() {
-    var header = new PacketBinding.VectorChar();
-    header.push_back(19);
-    for (var i=0;i<15;i++)
-        header.push_back(0);
+    if (this.header == undefined || this.characteristic == undefined)
+        return;
+
+    var bytes = new Binding.VectorChar();
+    var headerSize = 16;
+    for (var i=0;i<headerSize;i++)
+        bytes.push_back(this.header[i]);
 
     var p = new Packet();
-    p.send( this.characteristic, "OTA", "SmartDrive", "bytes", header);
+    p.dataLength = headerSize;
+    p.send( this.characteristic, "OTA", "SmartDrive", "bytes", bytes);
     p.destroy();
+    bytes.delete();
+};
+
+SmartDrive.prototype.sendFirmware = function() {
+    if (this.firmware == undefined || this.characteristic == undefined)
+        return;
+    
+    return new Promise(function(resolve) {
+        var payloadSize = 16;
+        var fileSize = this.firmware.length;
+        for (var i=0; i<fileSize;) {
+            // figure out the right length
+            var len = Math.min(fileSize - i, payloadSize);
+            // get a pointer to the right section of the firmware
+            const payload = Buffer.from(this.firmware, i, len);
+
+            // copy the firmware section into a byte array
+            var bytes = new Binding.VectorChar();
+            for (var i=0;i<len;i++)
+                bytes.push_back(payload[i]);
+
+            // make and send the packet
+            var p = new Packet();
+            p.send( this.characteristic, "OTA", "SmartDrive", "bytes", bytes, len);
+            p.destroy();
+            bytes.delete();
+
+            i += payloadSize;
+        }
+    });
+};
+
+SmartDrive.prototype.connectCallback = function(error) {
+    var smartDrive = this;
+    if (error) {
+        console.log("Couldn't connect to " + smartDrive.uuid());
+        console.log(error);
+    }
+    else {
+        smartDrive.peripheral.discoverServices(
+            getServiceUUIDs(),
+            smartDrive.serviceDiscoverCallback.bind( smartDrive )
+        );
+    }
+};
+
+SmartDrive.prototype.serviceDiscoverCallback = function(error, services) {
+    var smartDrive = this;
+    if (error) {
+        console.log("Couldn't get services from " + smartDrive.uuid());
+        console.log(error);
+    }
+    else {
+        console.log("Discovered SmartDrive Service");
+        //console.log(services);
+        services.map(function(service) {
+            if (isSmartDriveService(service.uuid)) {
+                service.discoverCharacteristics(
+                    [],
+                    smartDrive.characteristicDiscoverCallback.bind(smartDrive)
+                );
+            }
+        });
+    }
+};
+
+SmartDrive.prototype.characteristicDiscoverCallback = function(error, characteristics) {
+    var smartDrive = this;
+    if (error) {
+        console.log("Couldn't get characteristics from " + smartDrive.uuid());
+        console.log(error);
+    }
+    else {
+        console.log("Discovered SmartDrive Characteristics");
+        //console.log(characteristics);
+        characteristics.map(function(characteristic) {
+            if ( isControlEndpoint( characteristic.uuid ) ) {
+                smartDrive.controlEndpoint( characteristic );
+            }
+            characteristic.on(
+                'data',
+                smartDrive.update.bind(smartDrive)
+            );
+            characteristic.subscribe();
+        });
+    }
 };
 
 SmartDrive.prototype.motorTicksToMiles = function(ticks) {

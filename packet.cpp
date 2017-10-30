@@ -408,6 +408,9 @@ public:
       case Packet::Command::StartOTA:
         dataLen = sizeof(otaDevice);
         break;
+      case Packet::Command::StopOTA:
+        dataLen = sizeof(otaDevice);
+        break;
       case Packet::Command::SetSettings:
         dataLen = sizeof(settings);
         break;
@@ -428,7 +431,7 @@ public:
       break;
     case Packet::Type::OTA:
       output.push_back((uint8_t)ota);
-      dataLen = 16;
+      dataLen = dataLength;
       break;
     default:
       return std::vector<uint8_t>();
@@ -487,17 +490,6 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .value("Off", SmartDrive::ControlMode::Off)
     ;
 
-  emscripten::enum_<SmartDrive::Error>("SmartDriveError")
-    .value("NoError", SmartDrive::Error::NoError)
-    .value("BatteryVoltage", SmartDrive::Error::BatteryVoltage)
-    .value("MotorPhases", SmartDrive::Error::MotorPhases)
-    .value("OverCurrent", SmartDrive::Error::OverCurrent)
-    .value("OverTemperature", SmartDrive::Error::OverTemperature)
-    .value("GyroRange", SmartDrive::Error::GyroRange)
-    .value("OTAUnavailable", SmartDrive::Error::OTAUnavailable)
-    .value("BLEDisconnect", SmartDrive::Error::BLEDisconnect)
-    ;
-    
   emscripten::value_object<SmartDrive::Settings>("SmartDriveSettings")
     .field("ControlMode", &SmartDrive::Settings::controlMode)
     .field("Units", &SmartDrive::Settings::units)
@@ -625,7 +617,7 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .value("PushTracker", Packet::OTA::PushTracker)
     ;
 
-  emscripten::enum_<Packet::OTA>("PacketErrorType")
+  emscripten::enum_<SmartDrive::Error>("PacketErrorType")
     .value("NoError", SmartDrive::Error::NoError)
     .value("BatteryVoltage", SmartDrive::Error::BatteryVoltage)
     .value("MotorPhases", SmartDrive::Error::MotorPhases)

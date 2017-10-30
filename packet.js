@@ -46,12 +46,14 @@ Packet.prototype.makePacket = function(type, subType, key, data) {
     }
 };
 
-Packet.prototype.send = function(characteristic, type, subType, key, data) {
+Packet.prototype.send = function(characteristic, type, subType, key, data, length) {
     if (characteristic) {
         if (type && subType) {
             this.makePacket(type, subType, key, data);
         }
-        var output = this.writableBuffer();
+        if (length)
+            this.instance.dataLength = length;
+        var output = this.writableBuffer(length);
         if (output) {
             characteristic.write(output, false); // withoutResponse = false
             console.log("Sent: " + this.Type() + "::" + this.SubType());
@@ -59,12 +61,13 @@ Packet.prototype.send = function(characteristic, type, subType, key, data) {
     }
 };
 
-Packet.prototype.writableBuffer = function() {
+Packet.prototype.writableBuffer = function(length) {
     var output = null;
     if (this.instance) {
-        var vectorOut = new PacketBinding.VectorInt();
+        var vectorOut = new Binding.VectorInt();
         vectorOut = this.instance.format();
-        output = Buffer.alloc(vectorOut.size());
+        var len = length || vectorOut.size();
+        output = Buffer.alloc(len);
         for (var i=0; i<vectorOut.size(); i++) {
             output[i] = vectorOut.get(i);
         }
