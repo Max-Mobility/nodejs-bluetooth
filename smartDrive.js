@@ -269,7 +269,7 @@ SmartDrive.prototype.sendOTA = function() {
             return sd.sendHeader(10);
         })
         .then(function() {
-            return sd.sendFirmware(10);
+            return sd.sendFirmware(1500);
         })
         .then(function() {
             return sd.stopOTA(500);
@@ -334,7 +334,6 @@ SmartDrive.prototype.sendFirmware = function(delay) {
 
         var intId = -1;
 
-        var p = new Packet();
         var writeFirmwareSector = function() {
             if (index < fileSize) {
                 // figure out the right length
@@ -349,15 +348,15 @@ SmartDrive.prototype.sendFirmware = function(delay) {
                 // make and send the packet
                 if (intId == -1)
                     sd.characteristic.once('write', writeFirmwareSector);
+                var p = new Packet();
                 p.send( sd.characteristic, "OTA", "SmartDrive", "bytes", bytes, len);
+                p.destroy();
                 bytes.delete();
 
                 index += payloadSize;
                 ota.inc( payloadSize );
             }
-
-            if (index >= fileSize) {
-                p.destroy();
+            else {
                 if (intId != -1)
                     clearInterval(intId);
                 status.stop();
@@ -367,9 +366,9 @@ SmartDrive.prototype.sendFirmware = function(delay) {
         }
 
         var interval = delay || 5;
-        intId = setInterval(writeFirmwareSector, interval);
+        //intId = setInterval(writeFirmwareSector, interval);
 
-        //writeFirmwareSector();
+        writeFirmwareSector();
     });
 };
 

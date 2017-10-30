@@ -32,5 +32,10 @@ noble.on('stateChange', function(state) {
     }
 });
 
+noble.on('warning', function(w) {
+    console.log("GOT WARNING");
+    console.log(w);
+});
+
 // NOW ACTUALLY TURN ON THE BLE ADAPTER WHICH WILL START SCANNING
 noble.state = "poweredOn";

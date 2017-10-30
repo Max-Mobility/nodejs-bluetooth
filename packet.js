@@ -59,21 +59,22 @@ Packet.prototype.send = function(characteristic, type, subType, key, data, lengt
         }
         if (length)
             this.instance.length = length;
-        var output = this.writableBuffer(length);
+        var output = this.writableBuffer();
         if (output) {
+            //console.log(output);
             characteristic.write(output, false); // withoutResponse = false
             //console.log("Sent: " + this.Type() + "::" + this.SubType());
         }
     }
 };
 
-Packet.prototype.writableBuffer = function(length) {
+Packet.prototype.writableBuffer = function() {
     var output = null;
 
     if (this.instance) {
         var vectorOut = new Binding.VectorInt();
         vectorOut = this.instance.format();
-        var len = length || vectorOut.size();
+        var len = vectorOut.size();
         output = Buffer.alloc(len);
         var str = ""
         for (var i=0; i<vectorOut.size(); i++) {
