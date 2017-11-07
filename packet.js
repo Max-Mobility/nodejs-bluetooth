@@ -26,9 +26,11 @@ function Packet(bytes) {
 
 Packet.prototype.initialize = function(bytes) {
     this.destroy();
-
     this.instance = new Binding.Packet();
     this.instance.newPacket();
+
+    this._bytes = bytes;
+
     if (bytes) {
         this.instance.processPacket( bytes );
     }

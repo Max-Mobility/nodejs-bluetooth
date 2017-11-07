@@ -116,7 +116,7 @@ SmartDrive.prototype.updateState = function(packet) {
             console.log('Got device info for device: ' + device);
             console.log('                            ' + packet.data("deviceInfo").version);
             if (device == 'SmartDriveBluetooth') {
-                this.sendOTA();
+                //this.sendOTA();
             }
             break;
         case "MotorDistance":
