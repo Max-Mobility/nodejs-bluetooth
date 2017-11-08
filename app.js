@@ -129,6 +129,9 @@ App.prototype.handleCommand = function(packet) {
     if (packet.Type() == "Command") {
         console.log( "Got Command: " + packet.SubType() );
         switch (packet.SubType()) {
+        case "SetSettings":
+            this.sendDailyInfo();
+            break;
         case "SetTime":
             this.sendMotorDistance();
             break;
@@ -171,6 +174,50 @@ App.prototype.caseTicksToMiles = function(ticks) {
 };
 
 // packet sending functions
+App.prototype.sendDailyInfo = function() {
+    var app = this;
+    var p = new Packet();
+    var di = p.data("dailyInfo");
+    di.year = 2017;
+    di.month = 11;
+    di.day = 1;
+    di.pushesWith = 100;
+    di.pushesWithout = 0;
+    di.coastWith = 550;
+    di.coastWithout = 0;
+    di.distance = 100;
+    di.speed = 10;
+    di.ptBattery = 50;
+    di.sdBattery = 80;
+    p.send( app.characteristic, "Data", "DailyInfo", "dailyInfo", di);
+
+    di.year = 2017;
+    di.month = 11;
+    di.day = 8;
+    di.pushesWith = 5;
+    di.pushesWithout = 1;
+    di.coastWith = 770;
+    di.coastWithout = 110;
+    di.distance = 20;
+    di.speed = 200;
+    di.ptBattery = 50;
+    di.sdBattery = 80;
+    p.send( app.characteristic, "Data", "DailyInfo", "dailyInfo", di);
+
+    di.year = 2099;
+    di.month = 11;
+    di.day = 8;
+    di.pushesWith = 5;
+    di.pushesWithout = 1;
+    di.coastWith = 770;
+    di.coastWithout = 110;
+    di.distance = 20;
+    di.speed = 200;
+    di.ptBattery = 50;
+    di.sdBattery = 80;
+    p.send( app.characteristic, "Data", "DailyInfo", "dailyInfo", di);    
+    p.destroy();
+};
 
 App.prototype.sendMotorDistance = function() {
     var app = this;
