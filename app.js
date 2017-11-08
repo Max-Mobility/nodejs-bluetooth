@@ -226,9 +226,10 @@ App.prototype.descriptorDiscoverCallback = function(error, descriptors) {
             if (appCharacteristicUUIDs.indexOf(descriptor._characteristicUuid) > -1) {
                 console.log("Writing to descriptor:");
                 console.log(descriptor._characteristicUuid);
-                descriptor.writeValue(Buffer.from([0x01, 0x01]));
+                descriptor.writeValue(Buffer.from([0x01, 0x00]));
             }
         });
+        /*
         Object.keys(app.characteristics).map(function(uuid) {
             var characteristic = app.characteristics[uuid];
             if (!characteristic._is_subscribed) {
@@ -237,11 +238,12 @@ App.prototype.descriptorDiscoverCallback = function(error, descriptors) {
                     'data',
                     app.update.bind(app)
                 );
-                characteristic.write(Buffer.from([0x01, 0x01]), false);
+                characteristic.write(Buffer.from([0x01]), true);
                 characteristic.subscribe();
                 characteristic._is_subscribed = true;
             }
         });
+        */
     }
 };
 
@@ -255,7 +257,6 @@ App.prototype.characteristicDiscoverCallback = function(error, characteristics) 
         console.log("Discovered App Characteristics");
         characteristics.map(function(characteristic) {
             app.characteristics[characteristic.uuid] = characteristic;
-            console.log(characteristic.properties);
             var dataArray = [
                 //0x01, 0x07, 0xE1, 0x07, 0x0B, 0x07, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                 //0x01, 0x00, 0x29, 0x02, 0x12, 0x01, 0x00, 0x00, 0x00, 0x00 // motorDistance
@@ -267,20 +268,17 @@ App.prototype.characteristicDiscoverCallback = function(error, characteristics) 
                 app.controlEndpoint( characteristic );
             }
             characteristic.discoverDescriptors( app.descriptorDiscoverCallback.bind(app) );
-
-            console.log("Subscribing to : "+characteristic.uuid);
             characteristic.on(
                 'data',
                 app.update.bind(app)
             );
+            /*
+            console.log("Subscribing to : "+characteristic.uuid);
             characteristic.subscribe();
             setTimeout(function() {
-                characteristic.read(function(error, data) {
-                    console.log("READ ERROR: " + error);
-                    console.log("READ DATA: " + data);
-                });
-                characteristic.write(Buffer.from([0x01, 0x01]), false);
-            }, 1000);
+                characteristic.write(Buffer.from([0x01]), true);
+            }, 10000);
+            */
         });
     }
 };
