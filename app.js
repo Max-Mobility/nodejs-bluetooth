@@ -26,6 +26,14 @@ var app_service_UUIDs = [
     "9358ac8f63434a31b4e04b13a2b45d86",
 ];
 
+var appCharacteristicUUIDs = [
+    "58daaa15f2b24cd9b8275807b267dae1",  // data control
+    "68208ebff6554a2d98f420d7d860c471",  // app data
+    "9272e309cd334d83a959b54cc7a54d1f",  // OTA data
+    "8489625f6c734fc08bcc735bb173a920",  // WB data
+    "5177fda810034254aeb97f9edb3cc9cf",  // DU data
+];
+
 var app_control_characteristic_UUIDs = [
     "8489625f6c734fc08bcc735bb173a920",
 ];
@@ -195,12 +203,43 @@ App.prototype.serviceDiscoverCallback = function(error, services) {
     }
     else {
         console.log("Discovered App Service");
+        app.characteristics = {};
         services.map(function(service) {
             if (isAppService(service.uuid)) {
                 service.discoverCharacteristics(
                     [],
                     app.characteristicDiscoverCallback.bind(app)
                 );
+            }
+        });
+    }
+};
+
+App.prototype.descriptorDiscoverCallback = function(error, descriptors) {
+    var app = this;
+    if (error) {
+        console.log("Couldn't get descriptors from "+ app.uuid());
+        console.log(error);
+    }
+    else {
+        descriptors.map(function(descriptor) {
+            if (appCharacteristicUUIDs.indexOf(descriptor._characteristicUuid) > -1) {
+                console.log("Writing to descriptor:");
+                console.log(descriptor._characteristicUuid);
+                descriptor.writeValue(Buffer.from([0x01, 0x01]));
+            }
+        });
+        Object.keys(app.characteristics).map(function(uuid) {
+            var characteristic = app.characteristics[uuid];
+            if (!characteristic._is_subscribed) {
+                console.log("Subscribing to : "+uuid);
+                characteristic.on(
+                    'data',
+                    app.update.bind(app)
+                );
+                characteristic.write(Buffer.from([0x01, 0x01]), false);
+                characteristic.subscribe();
+                characteristic._is_subscribed = true;
             }
         });
     }
@@ -215,15 +254,33 @@ App.prototype.characteristicDiscoverCallback = function(error, characteristics) 
     else {
         console.log("Discovered App Characteristics");
         characteristics.map(function(characteristic) {
-            console.log(characteristic.uuid);
+            app.characteristics[characteristic.uuid] = characteristic;
+            console.log(characteristic.properties);
+            var dataArray = [
+                //0x01, 0x07, 0xE1, 0x07, 0x0B, 0x07, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                //0x01, 0x00, 0x29, 0x02, 0x12, 0x01, 0x00, 0x00, 0x00, 0x00 // motorDistance
+                //0x01, 0x06, 0x01, 0x01, 0x01 // versionInfo
+                0x01, 0x0B
+            ];
+            var data = Buffer.from(dataArray);
             if ( isControlEndpoint( characteristic.uuid ) ) {
                 app.controlEndpoint( characteristic );
             }
+            characteristic.discoverDescriptors( app.descriptorDiscoverCallback.bind(app) );
+
+            console.log("Subscribing to : "+characteristic.uuid);
             characteristic.on(
                 'data',
                 app.update.bind(app)
             );
             characteristic.subscribe();
+            setTimeout(function() {
+                characteristic.read(function(error, data) {
+                    console.log("READ ERROR: " + error);
+                    console.log("READ DATA: " + data);
+                });
+                characteristic.write(Buffer.from([0x01, 0x01]), false);
+            }, 1000);
         });
     }
 };
