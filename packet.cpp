@@ -399,7 +399,7 @@ public:
         dataLen = sizeof(motorInfo);
         break;
       default:
-        return std::vector<uint8_t>();
+        break;
       }
       break;
     case Packet::Type::Command:
@@ -421,7 +421,7 @@ public:
       case Packet::Command::DoubleTap:
         break;
       default:
-        return std::vector<uint8_t>();
+        break;
       }
       break;
     case Packet::Type::Error:
@@ -440,7 +440,7 @@ public:
       */
       break;
     default:
-      return std::vector<uint8_t>();
+      break;
     }
 
     for (int i=0; i<dataLen; i++) {

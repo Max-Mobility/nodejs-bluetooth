@@ -158,6 +158,18 @@ App.prototype.milesToMotorTicks = function(miles) {
     return miles * (265.714 * 63360.0) / (2.0 * 3.14159265358 * 3.8);
 };
 
+App.prototype.milesToCaseTicks = function(miles) {
+    return miles * (36.0 * 63360.0) / (2.0 * 3.14159265358 * 3.8);
+};
+
+App.prototype.motorTicksToMiles = function(ticks) {
+    return ticks * (2.0 * 3.14159265358 * 3.8) / (265.714 * 63360.0);
+};
+
+App.prototype.caseTicksToMiles = function(ticks) {
+    return ticks * (2.0 * 3.14159265358 * 3.8) / (36.0 * 63360.0);
+};
+
 // packet sending functions
 
 App.prototype.sendMotorDistance = function() {
@@ -229,8 +241,7 @@ App.prototype.descriptorDiscoverCallback = function(error, descriptors) {
     else {
         descriptors.map(function(descriptor) {
             if (appCharacteristicUUIDs.indexOf(descriptor._characteristicUuid) > -1) {
-                console.log("Writing to descriptor:");
-                console.log(descriptor._characteristicUuid);
+                // make sure we change the properties to show that we've subscribed
                 descriptor.writeValue(Buffer.from([0x01, 0x00]));
             }
         });
@@ -257,14 +268,6 @@ App.prototype.characteristicDiscoverCallback = function(error, characteristics) 
             );
         });
     }
-};
-
-App.prototype.motorTicksToMiles = function(ticks) {
-    return ticks * (2.0 * 3.14159265358 * 3.8) / (265.714 * 63360.0);
-};
-
-App.prototype.caseTicksToMiles = function(ticks) {
-    return ticks * (2.0 * 3.14159265358 * 3.8) / (36.0 * 63360.0);
 };
 
 module.exports = {
