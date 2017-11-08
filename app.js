@@ -100,12 +100,10 @@ App.prototype.controlEndpoint = function(c) {
 };
 
 App.prototype.update = function( bytes ) {
-    console.log("APP GOT BYTES");
-    console.log(bytes);
     var p = new Packet( bytes );
     switch (p.Type()) {
     case "Data":
-        this.updateState( p );
+        this.handleData( p );
         break;
     case "Command":
         this.handleCommand( p );
@@ -117,40 +115,26 @@ App.prototype.update = function( bytes ) {
     p.destroy();
 };
 
-App.prototype.updateState = function(packet) {
+App.prototype.handleData = function(packet) {
     if (packet.Type() == "Data") {
-        this.state.otaReady = false;
+        console.log( "Got Data: " + packet.SubType() );
         switch (packet.SubType()) {
-        case "DeviceInfo":
-            var device = bindingTypeToString( "Device", packet.data("deviceInfo").device );
-            console.log('Got device info for device: ' + device);
-            console.log('                            ' + packet.data("deviceInfo").version);
-            if (device == 'SmartDriveBluetooth') {
-                //this.sendOTA();
-            }
-            break;
-        case "MotorDistance":
-            console.log("DISTANCE");
-            console.log(packet._bytes);
-            this.state.totalDistance = this.motorTicksToMiles( packet.data("motorDistance") );
-            break;
-        case "MotorInfo":
-            this.state.version           = packet.data("motorInfo").version;
-            this.state.motor             = bindingTypeToString( "MotorState", packet.data("motorInfo").state );
-            this.state.battery           = packet.data("motorInfo").batteryLevel;
-            this.state.caseSpeed         = packet.data("motorInfo").speed;
-            this.state.lastDriveDistance = packet.data("motorInfo").distance;
-            this.state.driveTime         = packet.data("motorInfo").driveTime;
+        default:
             break;
         }
-        console.log("Got state for "+this.address());
-        //console.log(this.state);
     }
 };
 
 App.prototype.handleCommand = function(packet) {
     if (packet.Type() == "Command") {
+        console.log( "Got Command: " + packet.SubType() );
         switch (packet.SubType()) {
+        case "SetTime":
+            this.sendMotorDistance();
+            break;
+        case "Wake":
+            this.respondReady();
+            break;
         case "OTAReady":
             console.log('OTA Bootloader ready for FW Update!');
             this.state.otaReady = true;
@@ -168,6 +152,27 @@ App.prototype.handleError = function(packet) {
             break;
         }
     }
+};
+
+App.prototype.milesToMotorTicks = function(miles) {
+    return miles * (265.714 * 63360.0) / (2.0 * 3.14159265358 * 3.8);
+};
+
+// packet sending functions
+
+App.prototype.sendMotorDistance = function() {
+    var app = this;
+    app.motorTicks = app.milesToMotorTicks(27.15);
+    var p = new Packet();
+    p.send( app.characteristic, "Data", "MotorDistance", "motorDistance", app.motorTicks);
+    p.destroy();
+};
+
+App.prototype.respondReady = function() {
+    var app = this;
+    var p = new Packet();
+    p.send( app.characteristic, "Data", "Ready" );
+    p.destroy();
 };
 
 // BLUETOOTH HANDLER CALLBACKS
@@ -229,21 +234,6 @@ App.prototype.descriptorDiscoverCallback = function(error, descriptors) {
                 descriptor.writeValue(Buffer.from([0x01, 0x00]));
             }
         });
-        /*
-        Object.keys(app.characteristics).map(function(uuid) {
-            var characteristic = app.characteristics[uuid];
-            if (!characteristic._is_subscribed) {
-                console.log("Subscribing to : "+uuid);
-                characteristic.on(
-                    'data',
-                    app.update.bind(app)
-                );
-                characteristic.write(Buffer.from([0x01]), true);
-                characteristic.subscribe();
-                characteristic._is_subscribed = true;
-            }
-        });
-        */
     }
 };
 
@@ -257,13 +247,6 @@ App.prototype.characteristicDiscoverCallback = function(error, characteristics) 
         console.log("Discovered App Characteristics");
         characteristics.map(function(characteristic) {
             app.characteristics[characteristic.uuid] = characteristic;
-            var dataArray = [
-                //0x01, 0x07, 0xE1, 0x07, 0x0B, 0x07, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-                //0x01, 0x00, 0x29, 0x02, 0x12, 0x01, 0x00, 0x00, 0x00, 0x00 // motorDistance
-                //0x01, 0x06, 0x01, 0x01, 0x01 // versionInfo
-                0x01, 0x0B
-            ];
-            var data = Buffer.from(dataArray);
             if ( isControlEndpoint( characteristic.uuid ) ) {
                 app.controlEndpoint( characteristic );
             }
@@ -272,13 +255,6 @@ App.prototype.characteristicDiscoverCallback = function(error, characteristics) 
                 'data',
                 app.update.bind(app)
             );
-            /*
-            console.log("Subscribing to : "+characteristic.uuid);
-            characteristic.subscribe();
-            setTimeout(function() {
-                characteristic.write(Buffer.from([0x01]), true);
-            }, 10000);
-            */
         });
     }
 };
