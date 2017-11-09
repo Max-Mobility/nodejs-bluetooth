@@ -131,6 +131,7 @@ App.prototype.handleCommand = function(packet) {
         switch (packet.SubType()) {
         case "SetSettings":
             this.sendDailyInfo();
+            this.sendMotorDistance();
             break;
         case "SetTime":
             this.sendMotorDistance();
@@ -217,8 +218,6 @@ App.prototype.sendDailyInfo = function() {
     di.sdBattery = 80;
     p.send( app.characteristic, "Data", "DailyInfo", "dailyInfo", di);    
     p.destroy();
-
-    app.sendMotorDistance();
 };
 
 App.prototype.sendMotorDistance = function() {
