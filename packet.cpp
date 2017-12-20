@@ -101,7 +101,7 @@ public:
       MotorInfo,
       DeviceInfo,
       Ready,
-      BatteryInfo
+      ErrorInfo
       };
 
   enum class Command : uint8_t {
@@ -398,6 +398,15 @@ public:
       case Packet::Data::MotorInfo:
         dataLen = sizeof(motorInfo);
         break;
+      case Packet::Data::DeviceInfo:
+        dataLen = sizeof(deviceInfo);
+        break;
+      case Packet::Data::Ready:
+        dataLen = 0;
+        break;
+      case Packet::Data::ErrorInfo:
+        dataLen = sizeof(errorInfo);
+        break;
       default:
         break;
       }
@@ -537,7 +546,7 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .value("MotorInfo", Packet::Data::MotorInfo)
     .value("DeviceInfo", Packet::Data::DeviceInfo)
     .value("Ready", Packet::Data::Ready)
-    .value("BatteryInfo", Packet::Data::BatteryInfo)
+    .value("ErrorInfo", Packet::Data::ErrorInfo)
     ;
 
   emscripten::value_object<Packet::VersionInfo>("VersionInfo")
