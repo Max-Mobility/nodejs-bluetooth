@@ -21,6 +21,7 @@ public:
   enum class ControlMode   : uint8_t;
   enum class Units         : uint8_t;
   enum class AttendantMode : uint8_t;
+  enum class LedMode       : uint8_t;
 
   enum class Error: uint8_t {
     NoError,
@@ -44,11 +45,19 @@ public:
     English,
       Metric
       };
+
   enum class AttendantMode : uint8_t {
     Off,
       Inactive,
       OnePressed,
       TwoPressed
+      };
+
+  enum class LedMode : uint8_t {
+    Off,
+      SingleColor,
+      Sequence1,
+      Sequence2
       };
 
   // settings flags values are the bit numbers 
@@ -68,6 +77,17 @@ public:
   static bool getBoolSetting  ( const Settings* s, BoolSettingFlag boolSetting ) {
     return (bool)((s->settingsFlags1 >> (uint8_t)boolSetting) & 0x01);
   }
+
+  struct LedSettings {
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
+    LedMode mode;
+    uint8_t sequence;
+    uint8_t dimming;
+    uint8_t freq;
+  };
+  static const int ledSettingsLength = sizeof(LedSettings);
 };
 
 /*** Packet ***/
@@ -123,7 +143,9 @@ public:
       StartGame,
       StopGame,
       ConnectMPGame,
-      DisconnectMPGame
+      DisconnectMPGame,
+      SetLedSettings,
+      SetLedSequence
       };
 
   enum class OTA : uint8_t {
@@ -275,6 +297,9 @@ public:
     OTA          otaDevice;
 
     Game         game;
+      
+    // led controls
+    SmartDrive::LedSettings  ledSettings;
       
     SmartDrive::ControlMode  controlMode;
     SmartDrive::Units        units;
@@ -429,6 +454,9 @@ public:
         break;
       case Packet::Command::DoubleTap:
         break;
+      case Packet::Command::SetLedSettings:
+        dataLen = sizeof(ledSettings);
+        break;
       default:
         break;
       }
@@ -516,6 +544,23 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     .field("TapSensitivity", &SmartDrive::Settings::tapSensitivity)
     .field("Acceleration", &SmartDrive::Settings::acceleration)
     .field("MaxSpeed", &SmartDrive::Settings::maxSpeed)
+    ;
+
+  emscripten::enum_<SmartDrive::LedMode>("LedMode")
+    .value("Off", SmartDrive::LedMode::Off)
+    .value("SingleColor", SmartDrive::LedMode::SingleColor)
+    .value("Sequence1", SmartDrive::LedMode::Sequence1)
+    .value("Sequence2", SmartDrive::LedMode::Sequence2)
+    ;
+  
+  emscripten::value_object<SmartDrive::LedSettings>("LedSettings")
+    .field("red", &SmartDrive::LedSettings::red)
+    .field("green", &SmartDrive::LedSettings::green)
+    .field("blue", &SmartDrive::LedSettings::blue)
+    .field("mode", &SmartDrive::LedSettings::mode)
+    .field("sequence", &SmartDrive::LedSettings::sequence)
+    .field("dimming", &SmartDrive::LedSettings::dimming)
+    .field("freq", &SmartDrive::LedSettings::freq)
     ;
   
   // PACKET BINDINGS
@@ -667,6 +712,7 @@ EMSCRIPTEN_BINDINGS(packet_bindings) {
     
     // Actual payload info
     .property("settings", &Packet::settings)
+    .property("ledSettings", &Packet::ledSettings)
     .property("versionInfo", &Packet::versionInfo)
     .property("dailyInfo", &Packet::dailyInfo)
     .property("journeyInfo", &Packet::journeyInfo)
